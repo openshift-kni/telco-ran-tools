@@ -25,7 +25,7 @@ In order to address the bandwidth limitations, a factory pre-staging solution is
 
 ### Building
 ```
-[ricky@localhost telco-ran-tools]$ go build -o factory-precaching-cli
+[ricky@localhost telco-ran-tools]$ make
 ```
 
 ### Usage
