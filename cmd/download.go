@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -94,18 +95,21 @@ func download(folder, release string) {
 		artifact := splittedArtifact[len(splittedArtifact)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
 		cmd = exec.Command("skopeo", "copy", "docker://"+line, "dir://"+folder+"/"+artifact, "-q")
-		_, err := cmd.Output()
+		stdout, err := cmd.CombinedOutput()
 		if err != nil {
+			fmt.Println(string(stdout))
 			panic(err)
 		}
 		cmd = exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", folder+"/"+artifact)
-		_, err = cmd.Output()
+		stdout, err = cmd.CombinedOutput()
 		if err != nil {
+			fmt.Println(string(stdout))
 			panic(err)
 		}
 		cmd = exec.Command("rm", "-rf", folder+"/"+artifact)
-		_, err = cmd.Output()
+		stdout, err = cmd.CombinedOutput()
 		if err != nil {
+			fmt.Println(string(stdout))
 			panic(err)
 		}
 	}
