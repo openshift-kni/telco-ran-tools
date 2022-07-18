@@ -1,5 +1,5 @@
 FROM fedora:latest
-RUN dnf install -y skopeo gdisk util-linux xfsprogs && \
+RUN dnf install -y skopeo gdisk util-linux xfsprogs parted && \
     dnf clean -y all
 COPY _output /usr/local/bin
 COPY run.sh /run.sh

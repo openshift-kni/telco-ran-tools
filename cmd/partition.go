@@ -68,8 +68,6 @@ func partition(device string, size int) {
 		panic(err)
 	}
 
-	fmt.Println(string(stdout))
-
 	cmd = exec.Command("sgdisk", "-c:1:data", device)
 	stdout, err = cmd.CombinedOutput()
 
@@ -78,9 +76,7 @@ func partition(device string, size int) {
 		panic(err)
 	}
 
-	fmt.Println(string(stdout))
-
-	cmd = exec.Command("mkfs.xfs", device+"1")
+	cmd = exec.Command("mkfs.xfs", "-f", device+"1")
 	stdout, err = cmd.CombinedOutput()
 
 	if err != nil {
@@ -88,5 +84,4 @@ func partition(device string, size int) {
 		panic(err)
 	}
 
-	fmt.Println(string(stdout))
 }
