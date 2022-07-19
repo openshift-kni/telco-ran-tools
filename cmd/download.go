@@ -45,13 +45,16 @@ type ImageSet struct {
 	Release string
 }
 
-func download(folder, release string) {
-	tmpDir, err := ioutil.TempDir("", "fp-cli-")
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll(tmpDir)
+func generateOcMirrorCommand(tmpDir string) *exec.Cmd {
+	return exec.Command("./oc-mirror", "-c", "imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
+}
 
+func generateCreateArtifactsCommand(tmpDir string) *exec.Cmd {
+	artifactsCmd := "cat " + tmpDir + "/mirror/oc-mirror-workspace/mapping.txt | cut -d \"=\" -f1 > " + tmpDir + "/artifacts.txt"
+	return exec.Command("bash", "-c", artifactsCmd)
+}
+
+func templatizeImageset(release, tmpDir string) {
 	t, err := template.ParseFiles("imageset.tmpl")
 	if err != nil {
 		panic(err)
@@ -67,17 +70,28 @@ func download(folder, release string) {
 	if err != nil {
 		panic(err)
 	}
+}
 
-	cmd := exec.Command("./oc-mirror", "-c", "imageset.yaml", "file:///"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
-	_, err = cmd.Output()
+func download(folder, release string) {
+	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		panic(err)
 	}
+	defer os.RemoveAll(tmpDir)
 
-	artifactsCmd := "cat " + tmpDir + "/mirror/oc-mirror-workspace/mapping.txt | cut -d \"=\" -f1 > " + tmpDir + "/artifacts.txt"
-	cmd = exec.Command("bash", "-c", artifactsCmd)
-	_, err = cmd.Output()
+	templatizeImageset(release, tmpDir)
+
+	cmd := generateOcMirrorCommand(tmpDir)
+	stdout, err := executeCommand(cmd)
 	if err != nil {
+		fmt.Println(string(stdout))
+		panic(err)
+	}
+
+	cmd = generateCreateArtifactsCommand(tmpDir)
+	stdout, err = executeCommand(cmd)
+	if err != nil {
+		fmt.Println(string(stdout))
 		panic(err)
 	}
 
@@ -85,8 +99,8 @@ func download(folder, release string) {
 	if err != nil {
 		panic(err)
 	}
-	fileScanner := bufio.NewScanner(readFile)
 
+	fileScanner := bufio.NewScanner(readFile)
 	fileScanner.Split(bufio.ScanLines)
 
 	for fileScanner.Scan() {
