@@ -54,9 +54,6 @@ func generateFormatCommand(device string) *exec.Cmd {
 	return exec.Command("mkfs.xfs", "-f", device+"1")
 }
 
-func executeCommand(cmd *exec.Cmd) ([]byte, error) {
-	return cmd.CombinedOutput()
-}
 func partition(device string, size int) {
 	cmd := generateGetDeviceSizeCommand(device)
 	stdout, err := executeCommand(cmd)
@@ -71,7 +68,7 @@ func partition(device string, size int) {
 	if err != nil {
 		panic(err)
 	}
-	if !isPartitionSizeTooBig(deviceSize, float64(size)) {
+	if isPartitionSizeTooBig(deviceSize, float64(size)) {
 		panic(fmt.Errorf("partition size too big"))
 	}
 
