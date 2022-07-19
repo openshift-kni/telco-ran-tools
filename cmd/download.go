@@ -55,7 +55,7 @@ func generateCreateArtifactsCommand(tmpDir string) *exec.Cmd {
 }
 
 func templatizeImageset(release, tmpDir string) {
-	t, err := template.ParseFiles("imageset.tmpl")
+	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		panic(err)
 	}
