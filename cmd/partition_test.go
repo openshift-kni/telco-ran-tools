@@ -25,3 +25,12 @@ func TestIsPartitionSizeTooBig(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateGetDeviceSizeCOmmand(t *testing.T) {
+	c := generateGetDeviceSizeCommand("/dev/lol")
+	want := "/usr/bin/lsblk /dev/lol -osize -dn"
+
+	if c.String() != want {
+		t.Errorf("got %s, want %s", c, want)
+	}
+}
