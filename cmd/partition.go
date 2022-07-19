@@ -39,12 +39,27 @@ func init() {
 }
 
 func isPartitionSizeTooBig(deviceSize, desiredSize float64) bool {
-	return deviceSize >= desiredSize
+	return desiredSize > deviceSize
 }
 
+func generateGetDeviceSizeCommand(device string) *exec.Cmd {
+	return exec.Command("lsblk", device, "-osize", "-dn")
+}
+
+func generatePartitionCommand(device string, size int) *exec.Cmd {
+	return exec.Command("sgdisk", "-n", fmt.Sprintf("1:-%dGiB:0", size), device, "-g", "-c:1:data")
+}
+
+func generateFormatCommand(device string) *exec.Cmd {
+	return exec.Command("mkfs.xfs", "-f", device+"1")
+}
+
+func executeCommand(cmd *exec.Cmd) ([]byte, error) {
+	return cmd.CombinedOutput()
+}
 func partition(device string, size int) {
-	cmd := exec.Command("lsblk", device, "-osize", "-dn")
-	stdout, err := cmd.Output()
+	cmd := generateGetDeviceSizeCommand(device)
+	stdout, err := executeCommand(cmd)
 
 	if err != nil {
 		panic(err)
@@ -60,24 +75,16 @@ func partition(device string, size int) {
 		panic(fmt.Errorf("partition size too big"))
 	}
 
-	cmd = exec.Command("sgdisk", "-n", fmt.Sprintf("1:-%dGiB:0", size), device, "-g")
-	stdout, err = cmd.CombinedOutput()
+	cmd = generatePartitionCommand(device, size)
+	stdout, err = executeCommand(cmd)
 
 	if err != nil {
 		fmt.Println(string(stdout))
 		panic(err)
 	}
 
-	cmd = exec.Command("sgdisk", "-c:1:data", device)
-	stdout, err = cmd.CombinedOutput()
-
-	if err != nil {
-		fmt.Println(string(stdout))
-		panic(err)
-	}
-
-	cmd = exec.Command("mkfs.xfs", "-f", device+"1")
-	stdout, err = cmd.CombinedOutput()
+	cmd = generateFormatCommand(device)
+	stdout, err = executeCommand(cmd)
 
 	if err != nil {
 		fmt.Println(string(stdout))
