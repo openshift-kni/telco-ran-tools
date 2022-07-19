@@ -26,9 +26,18 @@ func TestIsPartitionSizeTooBig(t *testing.T) {
 	}
 }
 
-func TestGenerateGetDeviceSizeCOmmand(t *testing.T) {
+func TestGenerateGetDeviceSizeCommand(t *testing.T) {
 	c := generateGetDeviceSizeCommand("/dev/lol")
 	want := "/usr/bin/lsblk /dev/lol -osize -dn"
+
+	if c.String() != want {
+		t.Errorf("got %s, want %s", c, want)
+	}
+}
+
+func TestGeneratePartitionCommand(t *testing.T) {
+	c := generatePartitionCommand("/dev/lol", 100)
+	want := "/usr/sbin/sgdisk -n 1:-100GiB:0 /dev/lol -g -c:1:data"
 
 	if c.String() != want {
 		t.Errorf("got %s, want %s", c, want)
