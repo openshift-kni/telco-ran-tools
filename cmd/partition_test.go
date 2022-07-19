@@ -43,3 +43,12 @@ func TestGeneratePartitionCommand(t *testing.T) {
 		t.Errorf("got %s, want %s", c, want)
 	}
 }
+
+func TestGenerateFormatCommand(t *testing.T) {
+	c := generateFormatCommand("/dev/lol")
+	want := "/usr/sbin/mkfs.xfs -f /dev/lol1"
+
+	if c.String() != want {
+		t.Errorf("got %s, want %s", c, want)
+	}
+}
