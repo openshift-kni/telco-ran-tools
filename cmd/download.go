@@ -46,7 +46,7 @@ type ImageSet struct {
 }
 
 func generateOcMirrorCommand(tmpDir string) *exec.Cmd {
-	return exec.Command("./oc-mirror", "-c", "imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
+	return exec.Command("oc-mirror", "-c", tmpDir+"/imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
 }
 
 func generateCreateArtifactsCommand(tmpDir string) *exec.Cmd {

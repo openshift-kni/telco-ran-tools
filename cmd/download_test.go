@@ -6,7 +6,7 @@ import (
 
 func TestGenerateOcMirrorCommand(t *testing.T) {
 	c := generateOcMirrorCommand("/tmp/fp-cli-lol")
-	want := "./oc-mirror -c imageset.yaml file:///tmp/fp-cli-lol/mirror --ignore-history --dry-run"
+	want := "/usr/local/bin/oc-mirror -c imageset.yaml file:///tmp/fp-cli-lol/mirror --ignore-history --dry-run"
 
 	if c.String() != want {
 		t.Errorf("got %s, want %s", c, want)
