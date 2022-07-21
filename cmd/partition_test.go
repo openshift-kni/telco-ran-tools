@@ -52,3 +52,12 @@ func TestGenerateFormatCommand(t *testing.T) {
 		t.Errorf("got %s, want %s", c, want)
 	}
 }
+
+func TestGenerateMountCommand(t *testing.T) {
+	c := generateMountCommand("/dev/lol", "/lol/mnt")
+	want := "/usr/bin/mount /dev/lol1 /lol/mnt"
+
+	if c.String() != want {
+		t.Errorf("got %s, want %s", c, want)
+	}
+}
