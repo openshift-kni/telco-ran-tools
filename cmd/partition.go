@@ -26,8 +26,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		device, _ := cmd.Flags().GetString("device")
 		size, _ := cmd.Flags().GetInt("size")
-		folder, _ := cmd.Flags().GetString("folder")
-		partition(device, size, folder)
+		partition(device, size)
 	},
 }
 
@@ -35,8 +34,6 @@ func init() {
 	partitionCmd.Flags().StringP("device", "d", "", "Device to be partitioned")
 	partitionCmd.MarkFlagRequired("device")
 	partitionCmd.Flags().IntP("size", "s", 100, "Partition size in GB")
-	partitionCmd.Flags().StringP("folder", "f", "", "Folder to mount the device")
-	partitionCmd.MarkFlagRequired("folder")
 	rootCmd.AddCommand(partitionCmd)
 
 }
@@ -57,11 +54,7 @@ func generateFormatCommand(device string) *exec.Cmd {
 	return exec.Command("mkfs.xfs", "-f", device+"1")
 }
 
-func generateMountCommand(device, folder string) *exec.Cmd {
-	return exec.Command("mount", device+"1", folder)
-}
-
-func partition(device string, size int, folder string) {
+func partition(device string, size int) {
 	cmd := generateGetDeviceSizeCommand(device)
 	stdout, err := executeCommand(cmd)
 
@@ -95,11 +88,4 @@ func partition(device string, size int, folder string) {
 		panic(err)
 	}
 
-	cmd = generateMountCommand(device, folder)
-	stdout, err = executeCommand(cmd)
-
-	if err != nil {
-		fmt.Println(string(stdout))
-		panic(err)
-	}
 }
