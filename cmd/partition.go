@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -57,35 +58,35 @@ func generateFormatCommand(device string) *exec.Cmd {
 func partition(device string, size int) {
 	cmd := generateGetDeviceSizeCommand(device)
 	stdout, err := executeCommand(cmd)
-
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: unable to get devize size: %v\n", err)
+		os.Exit(1)
 	}
 
 	deviceSizeStr := strings.TrimSpace(string(stdout))
 	deviceSizeStr = deviceSizeStr[:len(deviceSizeStr)-1]
 	deviceSize, err := strconv.ParseFloat(deviceSizeStr, 64)
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: unable to parse device size: %v\n", err)
+		os.Exit(1)
 	}
 	if isPartitionSizeTooBig(deviceSize, float64(size)) {
-		panic(fmt.Errorf("partition size too big"))
+		fmt.Fprintf(os.Stderr, "error: partition size is too big")
+		os.Exit(1)
 	}
 
 	cmd = generatePartitionCommand(device, size)
-	stdout, err = executeCommand(cmd)
-
+	_, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Println(string(stdout))
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: unable to partition device: %v\n", err)
+		os.Exit(1)
 	}
 
 	cmd = generateFormatCommand(device)
-	stdout, err = executeCommand(cmd)
-
+	_, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Println(string(stdout))
-		panic(err)
+		fmt.Fprintf(os.Stderr, "error: unable to format device: %v\n", err)
+		os.Exit(1)
 	}
 
 }
