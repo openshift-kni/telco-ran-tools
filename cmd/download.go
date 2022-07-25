@@ -42,7 +42,8 @@ func init() {
 }
 
 type ImageSet struct {
-	Release string
+	Channel string
+	Version string
 }
 
 func generateOcMirrorCommand(tmpDir string) *exec.Cmd {
@@ -65,7 +66,15 @@ func templatizeImageset(release, tmpDir string) {
 		panic(err)
 	}
 
-	d := ImageSet{release}
+	r := strings.Split(release, ".")
+	channel := r[0] + "." + r[1]
+	version := channel + "." + "0"
+
+	if len(r) == 3 {
+		version = release
+	}
+
+	d := ImageSet{channel, version}
 	err = t.Execute(f, d)
 	if err != nil {
 		panic(err)
