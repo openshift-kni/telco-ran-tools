@@ -38,7 +38,7 @@ clean:
 	rm -rf _output
 
 .PHONY: image
-image:
+image: binaries
 	@echo "building image"
 	$(RUNTIME) build -f Dockerfile -t quay.io/$(REPOOWNER)/$(IMAGENAME):$(IMAGETAG) .
 
