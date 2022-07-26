@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"strings"
 	"testing"
 )
 
 func TestGenerateOcMirrorCommand(t *testing.T) {
 	c := generateOcMirrorCommand("/tmp/fp-cli-lol")
-	want := "/usr/local/bin/oc-mirror -c /tmp/fp-cli-lol/imageset.yaml file:///tmp/fp-cli-lol/mirror --ignore-history --dry-run"
+	want := "-c /tmp/fp-cli-lol/imageset.yaml file:///tmp/fp-cli-lol/mirror --ignore-history --dry-run"
 
-	if c.String() != want {
+	if strings.Join(c.Args[1:], " ") != want {
 		t.Errorf("got %s, want %s", c, want)
 	}
 }

@@ -1,0 +1,13 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+aliases:
+  telco-ran-tools-reviewers:
+    - browsell
+    - donpenney
+    - rcarrillocruz
+    - nishant-parekh
+  telco-ran-tools-approvers:
+    - browsell
+    - donpenney
+    - rcarrillocruz
+    - nishant-parekh
