@@ -95,16 +95,16 @@ func download(folder, release string) {
 	templatizeImageset(release, tmpDir)
 
 	cmd := generateOcMirrorCommand(tmpDir)
-	_, err = executeCommand(cmd)
+	stdout, err := executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run oc-mirror command: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to run oc-mirror command: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
 	cmd = generateCreateArtifactsCommand(tmpDir)
-	_, err = executeCommand(cmd)
+	stdout, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to create artifacts.txt file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to create artifacts.txt file: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
@@ -123,21 +123,21 @@ func download(folder, release string) {
 		artifact := splittedArtifact[len(splittedArtifact)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
 		cmd = exec.Command("skopeo", "copy", "docker://"+line, "dir://"+folder+"/"+artifact, "-q")
-		_, err := cmd.CombinedOutput()
+		stdout, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to copy artifact locally: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error: unable to copy artifact locally: %s\n", string(stdout))
 			os.Exit(1)
 		}
 		cmd = exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", folder+"/"+artifact)
-		_, err = cmd.CombinedOutput()
+		stdout, err = cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to compress artifact: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error: unable to compress artifact: %s\n", string(stdout))
 			os.Exit(1)
 		}
 		cmd = exec.Command("rm", "-rf", folder+"/"+artifact)
-		_, err = cmd.CombinedOutput()
+		stdout, err = cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to remove uncompressed artifact: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error: unable to remove uncompressed artifact: %s\n", string(stdout))
 			os.Exit(1)
 		}
 	}

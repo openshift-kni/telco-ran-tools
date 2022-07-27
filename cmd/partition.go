@@ -59,7 +59,7 @@ func partition(device string, size int) {
 	cmd := generateGetDeviceSizeCommand(device)
 	stdout, err := executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to get devize size: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to get devize size: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
@@ -76,16 +76,16 @@ func partition(device string, size int) {
 	}
 
 	cmd = generatePartitionCommand(device, size)
-	_, err = executeCommand(cmd)
+	stdout, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to partition device: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to partition device: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
 	cmd = generateFormatCommand(device)
-	_, err = executeCommand(cmd)
+	stdout, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to format device: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to format device: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
