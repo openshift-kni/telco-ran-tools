@@ -55,6 +55,18 @@ func generateCreateArtifactsCommand(tmpDir string) *exec.Cmd {
 	return exec.Command("bash", "-c", artifactsCmd)
 }
 
+func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd {
+	return exec.Command("skopeo", "copy", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q")
+}
+
+func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
+	return exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", folder+"/"+artifact)
+}
+
+func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
+	return exec.Command("rm", "-rf", folder+"/"+artifact)
+}
+
 func templatizeImageset(release, tmpDir string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
@@ -97,14 +109,14 @@ func download(folder, release string) {
 	cmd := generateOcMirrorCommand(tmpDir)
 	stdout, err := executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run oc-mirror command: %s\n", string(stdout))
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 		os.Exit(1)
 	}
 
 	cmd = generateCreateArtifactsCommand(tmpDir)
 	stdout, err = executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to create artifacts.txt file: %s\n", string(stdout))
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 		os.Exit(1)
 	}
 
@@ -122,22 +134,23 @@ func download(folder, release string) {
 		splittedArtifact := strings.Split(line, "/")
 		artifact := splittedArtifact[len(splittedArtifact)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
-		cmd = exec.Command("skopeo", "copy", "docker://"+line, "dir://"+folder+"/"+artifact, "-q")
+		cmd = generateSkopeoCopyCommand(folder, artifact, line)
+		fmt.Println(cmd.Args)
 		stdout, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to copy artifact locally: %s\n", string(stdout))
+			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 			os.Exit(1)
 		}
-		cmd = exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", folder+"/"+artifact)
+		cmd = generateTarArtifactCommand(folder, artifact)
 		stdout, err = cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to compress artifact: %s\n", string(stdout))
+			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 			os.Exit(1)
 		}
-		cmd = exec.Command("rm", "-rf", folder+"/"+artifact)
+		cmd = generateRemoveArtifactCommand(folder, artifact)
 		stdout, err = cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to remove uncompressed artifact: %s\n", string(stdout))
+			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 			os.Exit(1)
 		}
 	}
