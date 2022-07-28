@@ -80,13 +80,10 @@ func templatizeImageset(release, tmpDir string) {
 		os.Exit(1)
 	}
 
+	// TODO: Validate the release version is valid with something like oc-mirror list releases --channel=stable-<channel
 	r := strings.Split(release, ".")
 	channel := r[0] + "." + r[1]
-	version := channel + "." + "0"
-
-	if len(r) == 3 {
-		version = release
-	}
+	version := release
 
 	d := ImageSet{channel, version}
 	err = t.Execute(f, d)
