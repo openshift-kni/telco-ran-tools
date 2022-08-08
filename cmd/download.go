@@ -132,7 +132,6 @@ func download(folder, release string) {
 		artifact := splittedArtifact[len(splittedArtifact)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
 		cmd = generateSkopeoCopyCommand(folder, artifact, line)
-		fmt.Println(cmd.Args)
 		stdout, err := cmd.CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
