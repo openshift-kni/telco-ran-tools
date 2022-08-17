@@ -11,8 +11,8 @@ mirror:
       minVersion: {{ .Version }}
       maxVersion: {{ .Version }}
   additionalImages:
-    - name: registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8:v2.0.1-5
-    - name: registry.redhat.io/multicluster-engine/assisted-installer-rhel8:v2.0.1-5
+    - name: registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8:v2.0
+    - name: registry.redhat.io/multicluster-engine/assisted-installer-rhel8:v2.0
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
       full: true
