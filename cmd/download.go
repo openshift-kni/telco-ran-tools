@@ -40,17 +40,12 @@ type ImageSet struct {
 	Version string
 }
 
-func generateOcMirrorCommand(tmpDir string) *exec.Cmd {
-	return exec.Command("oc-mirror", "-c", tmpDir+"/imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
-}
-
-func generateCreateArtifactsCommand(tmpDir string) *exec.Cmd {
-	artifactsCmd := "cat " + tmpDir + "/mirror/oc-mirror-workspace/mapping.txt | cut -d \"=\" -f1 > " + tmpDir + "/artifacts.txt"
-	return exec.Command("bash", "-c", artifactsCmd)
+func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
+	return exec.Command("oc-mirror", "-c", folder+"/imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
 }
 
 func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd {
-	return exec.Command("skopeo", "copy", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q")
+	return exec.Command("skopeo", "copy", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q", "--retry-times", "10")
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
@@ -61,14 +56,18 @@ func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
 	return exec.Command("rm", "-rf", folder+"/"+artifact)
 }
 
-func templatizeImageset(release, tmpDir string) {
+func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
+	return exec.Command("cp", tmpFolder+"/mirror/oc-mirror-workspace/mapping.txt", folder+"/mapping.txt")
+}
+
+func templatizeImageset(release, folder string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
 		os.Exit(1)
 	}
 
-	f, err := os.Create(tmpDir + "/imageset.yaml")
+	f, err := os.Create(folder + "/imageset.yaml")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse imageset.yaml file: %v\n", err)
 		os.Exit(1)
@@ -87,6 +86,36 @@ func templatizeImageset(release, tmpDir string) {
 	}
 }
 
+func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, ocpImagesFile *os.File) {
+	splittedImageMapping := strings.Split(imageMapping, ":")
+	if strings.HasPrefix(splittedImageMapping[0], "multicluster-engine") {
+		aiImagesFile.WriteString(image + "\n")
+	} else if splittedImageMapping[0] == "openshift/release-images" {
+		aiImagesFile.WriteString(image + "\n")
+		ocpImagesFile.WriteString(image + "\n")
+	} else {
+		splittedImageMapping = strings.SplitN(splittedImageMapping[1], "-", 3)
+		containerName := splittedImageMapping[2]
+		if containerName == "must-gather" ||
+			containerName == "hyperkube" ||
+			containerName == "cloud-credential-operator" ||
+			containerName == "cluster-policy-controller" ||
+			containerName == "pod" ||
+			containerName == "cluster-config-operator" ||
+			containerName == "cluster-etcd-operator" ||
+			containerName == "cluster-kube-controller-manager-operator" ||
+			containerName == "cluster-kube-scheduler-operator" ||
+			containerName == "machine-config-operator" ||
+			containerName == "etcd" ||
+			containerName == "cluster-bootstrap" ||
+			containerName == "cluster-ingress-operator" ||
+			containerName == "cluster-kube-apiserver-operator" {
+			aiImagesFile.WriteString(image + "\n")
+		}
+		ocpImagesFile.WriteString(image + "\n")
+	}
+}
+
 func download(folder, release string) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
@@ -95,37 +124,67 @@ func download(folder, release string) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	templatizeImageset(release, tmpDir)
+	templatizeImageset(release, folder)
 
-	cmd := generateOcMirrorCommand(tmpDir)
-	stdout, err := executeCommand(cmd)
+	_, err = os.Stat(folder + "/mapping.txt")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-		os.Exit(1)
+		fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
+		cmd := generateOcMirrorCommand(tmpDir, folder)
+		stdout, err := executeCommand(cmd)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+			os.Exit(1)
+		}
+
+		cmd = generateMoveMappingFileCommand(tmpDir, folder)
+		stdout, err = executeCommand(cmd)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+			os.Exit(1)
+		}
 	}
 
-	cmd = generateCreateArtifactsCommand(tmpDir)
-	stdout, err = executeCommand(cmd)
+	mappingFile, err := os.Open(folder + "/mapping.txt")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		fmt.Fprintf(os.Stderr, "error: unable to open mapping.txt file: %v\n", err)
 		os.Exit(1)
 	}
+	defer mappingFile.Close()
 
-	readFile, err := os.Open(tmpDir + "/artifacts.txt")
+	aiImagesFile, err := os.OpenFile(folder+"/ai-images.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to open artifacts.txt file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: unable to open ai-images.txt file: %v\n", err)
 		os.Exit(1)
 	}
+	defer aiImagesFile.Close()
 
-	fileScanner := bufio.NewScanner(readFile)
+	ocpImagesFile, err := os.OpenFile(folder+"/ocp-images.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to open ocp-images.txt file: %v\n", err)
+		os.Exit(1)
+	}
+	defer ocpImagesFile.Close()
+
+	fileScanner := bufio.NewScanner(mappingFile)
 	fileScanner.Split(bufio.ScanLines)
 
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
-		splittedArtifact := strings.Split(line, "/")
-		artifact := splittedArtifact[len(splittedArtifact)-1]
+		splittedLine := strings.Split(line, "=")
+		image := splittedLine[0]
+		imageMapping := splittedLine[1]
+		splittedImage := strings.Split(image, "/")
+		artifact := splittedImage[len(splittedImage)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
-		cmd = generateSkopeoCopyCommand(folder, artifact, line)
+		fmt.Fprintf(os.Stdout, "Processing artifact %s\n", artifact)
+		_, err = os.Stat(folder + "/" + artifact + ".tgz")
+		if err == nil {
+			// File exists, thus it's been already downloaded and tarballed, moving on...
+			fmt.Fprintf(os.Stdout, "File %s.tgz already exists, skipping...\n", artifact)
+			continue
+		}
+		saveToImagesFile(image, imageMapping, aiImagesFile, ocpImagesFile)
+		cmd := generateSkopeoCopyCommand(folder, artifact, image)
 		stdout, err := cmd.CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
