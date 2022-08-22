@@ -7,7 +7,9 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -86,6 +88,30 @@ func templatizeImageset(release, folder string) {
 	}
 }
 
+func downloadRootFsFile(release, folder string) error {
+	r := strings.Split(release, ".")
+	channel := r[0] + "." + r[1]
+
+	out, err := os.Create(folder + "/rhcos-live-rootfs.x86_64.img")
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get("https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/" + channel + "/latest/rhcos-live-rootfs.x86_64.img")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, ocpImagesFile *os.File) {
 	splittedImageMapping := strings.Split(imageMapping, ":")
 	if strings.HasPrefix(splittedImageMapping[0], "multicluster-engine") {
@@ -123,6 +149,12 @@ func download(folder, release string) {
 		os.Exit(1)
 	}
 	defer os.RemoveAll(tmpDir)
+
+	fmt.Fprintf(os.Stdout, "Downloading release rootFS image...\n")
+	downloadRootFsFile(release, folder)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v", err)
+	}
 
 	templatizeImageset(release, folder)
 
