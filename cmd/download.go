@@ -150,12 +150,13 @@ func download(folder, release string) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	_, err = os.Stat(folder + "/rhcos-live-rootfs.x86_64.img")
+	_, err = os.Stat(folder + "rhcos-live-rootfs.x86_64.img")
 	if err != nil {
 		fmt.Fprintf(os.Stdout, "Downloading release rootFS image...\n")
-		downloadRootFsFile(release, folder)
+		err = downloadRootFsFile(release, folder)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v", err)
+			fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v\n", err)
+			os.Exit(1)
 		}
 	}
 
