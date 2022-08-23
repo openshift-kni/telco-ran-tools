@@ -119,7 +119,7 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 	} else if splittedImageMapping[0] == "openshift/release-images" {
 		aiImagesFile.WriteString(image + "\n")
 		ocpImagesFile.WriteString(image + "\n")
-	} else {
+	} else if splittedImageMapping[0] == "openshift/release" {
 		splittedImageMapping = strings.SplitN(splittedImageMapping[1], "-", 3)
 		containerName := splittedImageMapping[2]
 		if containerName == "must-gather" ||
@@ -138,6 +138,8 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 			containerName == "cluster-kube-apiserver-operator" {
 			aiImagesFile.WriteString(image + "\n")
 		}
+		ocpImagesFile.WriteString(image + "\n")
+	} else {
 		ocpImagesFile.WriteString(image + "\n")
 	}
 }
