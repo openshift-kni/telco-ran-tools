@@ -38,8 +38,10 @@ func init() {
 }
 
 type ImageSet struct {
-	Channel string
-	Version string
+	Channel                   string
+	Version                   string
+	AssistedInstallerAgentSHA string
+	AssistedInstallerSHA      string
 }
 
 func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
@@ -80,7 +82,11 @@ func templatizeImageset(release, folder string) {
 	channel := r[0] + "." + r[1]
 	version := release
 
-	d := ImageSet{channel, version}
+	// This correspond to what we empirically saw AI 2.5 pulls, which do not correspond to published images with label 2.0 (ACM 2.5==MCE2.0), thus we hardcode
+	// till we figure out a better way. If we support ACM 2.6, then there should be a map of ACM versions => SHAs
+	assistedInstallerAgentSHA := "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
+	assistedInstallerSHA := "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
+	d := ImageSet{channel, version, assistedInstallerAgentSHA, assistedInstallerSHA}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
