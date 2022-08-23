@@ -27,7 +27,7 @@ func TestGenerateSkopeoCopyCommand(t *testing.T) {
 
 func TestTarArtifactCommand(t *testing.T) {
 	c := generateTarArtifactCommand("/tmp/mnt", "assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39")
-	want := "/usr/bin/tar czvf /tmp/mnt/assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39.tgz /tmp/mnt/assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39"
+	want := "/usr/bin/tar czvf /tmp/mnt/assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39.tgz -C /tmp/mnt assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39"
 
 	if c.String() != want {
 		t.Errorf("got %s, want %s", c, want)
