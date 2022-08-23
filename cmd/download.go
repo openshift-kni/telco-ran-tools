@@ -18,6 +18,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TODO: Add SHAs for 2.6 if we support it as ACM/AI
+const ACM25AssistedInstallerAgentSHA = "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
+const ACM25AssistedInstallerSHA = "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
+
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
@@ -82,11 +86,8 @@ func templatizeImageset(release, folder string) {
 	channel := r[0] + "." + r[1]
 	version := release
 
-	// This correspond to what we empirically saw AI 2.5 pulls, which do not correspond to published images with label 2.0 (ACM 2.5==MCE2.0), thus we hardcode
-	// till we figure out a better way. If we support ACM 2.6, then there should be a map of ACM versions => SHAs
-	assistedInstallerAgentSHA := "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
-	assistedInstallerSHA := "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
-	d := ImageSet{channel, version, assistedInstallerAgentSHA, assistedInstallerSHA}
+	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
+	d := ImageSet{channel, version, ACM25AssistedInstallerAgentSHA, ACM25AssistedInstallerSHA}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
