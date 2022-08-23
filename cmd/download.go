@@ -51,7 +51,7 @@ func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
-	return exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", folder+"/"+artifact)
+	return exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", "-C", folder, artifact)
 }
 
 func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
