@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"text/template"
 
@@ -29,7 +30,8 @@ var downloadCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		folder, _ := cmd.Flags().GetString("folder")
 		release, _ := cmd.Flags().GetString("release")
-		download(folder, release)
+		url, _ := cmd.Flags().GetString("rootfs-url")
+		download(folder, release, url)
 	},
 }
 
@@ -38,6 +40,7 @@ func init() {
 	downloadCmd.MarkFlagRequired("folder")
 	downloadCmd.Flags().StringP("release", "r", "", "OpenShift release version")
 	downloadCmd.MarkFlagRequired("folder")
+	downloadCmd.Flags().StringP("rootfs-url", "u", "", "rootFS URL")
 	rootCmd.AddCommand(downloadCmd)
 }
 
@@ -95,7 +98,7 @@ func templatizeImageset(release, folder string) {
 	}
 }
 
-func downloadRootFsFile(release, folder string) error {
+func downloadRootFsFile(release, folder, url string) error {
 	r := strings.Split(release, ".")
 	channel := r[0] + "." + r[1]
 
@@ -151,7 +154,7 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 	}
 }
 
-func download(folder, release string) {
+func download(folder, release, url string) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
@@ -159,13 +162,20 @@ func download(folder, release string) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	_, err = os.Stat(folder + "rhcos-live-rootfs.x86_64.img")
-	if err != nil {
-		fmt.Fprintf(os.Stdout, "Downloading release rootFS image...\n")
-		err = downloadRootFsFile(release, folder)
+	var rootFsFilename string
+	if url != "" {
+		rootFsFilename = path.Base(url)
+	}
+
+	if rootFsFilename != "" {
+		_, err = os.Stat(folder + rootFsFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v\n", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stdout, "Downloading release rootFS image %s...\n", url)
+			err = downloadRootFsFile(release, folder, url)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v\n", err)
+				os.Exit(1)
+			}
 		}
 	}
 
