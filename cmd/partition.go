@@ -31,10 +31,6 @@ func init() {
 
 }
 
-func isPartitionSizeTooBig(deviceSize, desiredSize float64) bool {
-	return desiredSize > deviceSize
-}
-
 func generatePartitionCommand(device string, size int) *exec.Cmd {
 	return exec.Command("sgdisk", "-n", fmt.Sprintf("1:-%dGiB:0", size), device, "-g", "-c:1:data")
 }
