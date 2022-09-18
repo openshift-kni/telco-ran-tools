@@ -19,9 +19,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TODO: Add SHAs for 2.6 if we support it as ACM/AI
-const ACM25AssistedInstallerAgentSHA = "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
-const ACM25AssistedInstallerSHA = "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
+// Using SHAs for ACM 2.5.1 as defaults
+const ACMDefaultAssistedInstallerAgentSHA = "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
+const ACMDefaultAssistedInstallerSHA = "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
 
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
@@ -31,7 +31,11 @@ var downloadCmd = &cobra.Command{
 		folder, _ := cmd.Flags().GetString("folder")
 		release, _ := cmd.Flags().GetString("release")
 		url, _ := cmd.Flags().GetString("rootfs-url")
-		download(folder, release, url)
+		aiInstallerSha, _ := cmd.Flags().GetString("ai-installer-sha")
+		aiAgentSha, _ := cmd.Flags().GetString("ai-agent-sha")
+		aiControllerSha, _ := cmd.Flags().GetString("ai-controller-sha")
+		additionalImages, _ := cmd.Flags().GetStringSlice("img")
+		download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages)
 	},
 }
 
@@ -41,14 +45,20 @@ func init() {
 	downloadCmd.Flags().StringP("release", "r", "", "OpenShift release version")
 	downloadCmd.MarkFlagRequired("folder")
 	downloadCmd.Flags().StringP("rootfs-url", "u", "", "rootFS URL")
+	downloadCmd.Flags().StringP("ai-installer-sha", "i", "", "AI Installer Image SHA")
+	downloadCmd.Flags().StringP("ai-agent-sha", "g", "", "AI Agent Image SHA")
+	downloadCmd.Flags().StringP("ai-controller-sha", "c", "", "AI Controller Image SHA")
+	downloadCmd.Flags().StringSliceP("img", "a", []string{}, "Additional Image(s)")
 	rootCmd.AddCommand(downloadCmd)
 }
 
 type ImageSet struct {
-	Channel                   string
-	Version                   string
-	AssistedInstallerAgentSHA string
-	AssistedInstallerSHA      string
+	Channel                        string
+	Version                        string
+	AssistedInstallerAgentSHA      string
+	AssistedInstallerSHA           string
+	AssistedInstallerControllerSHA string
+	AdditionalImages               []string
 }
 
 func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
@@ -71,7 +81,7 @@ func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", tmpFolder+"/mirror/oc-mirror-workspace/mapping.txt", folder+"/mapping.txt")
 }
 
-func templatizeImageset(release, folder string) {
+func templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
@@ -90,7 +100,15 @@ func templatizeImageset(release, folder string) {
 	version := release
 
 	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
-	d := ImageSet{channel, version, ACM25AssistedInstallerAgentSHA, ACM25AssistedInstallerSHA}
+	if aiInstallerSha == "" {
+		aiInstallerSha = ACMDefaultAssistedInstallerSHA
+	}
+
+	if aiAgentSha == "" {
+		aiAgentSha = ACMDefaultAssistedInstallerAgentSHA
+	}
+
+	d := ImageSet{channel, version, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
@@ -154,7 +172,7 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 	}
 }
 
-func download(folder, release, url string) {
+func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
@@ -179,7 +197,7 @@ func download(folder, release, url string) {
 		}
 	}
 
-	templatizeImageset(release, folder)
+	templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages)
 
 	_, err = os.Stat(folder + "/mapping.txt")
 	if err != nil {

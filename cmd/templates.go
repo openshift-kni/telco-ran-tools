@@ -13,6 +13,12 @@ mirror:
   additionalImages:
     - name: registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@{{ .AssistedInstallerAgentSHA }}
     - name: registry.redhat.io/multicluster-engine/assisted-installer-rhel8@{{ .AssistedInstallerSHA }}
+{{- if ne .AssistedInstallerControllerSHA "" }}
+    - name: registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@{{ .AssistedInstallerControllerSHA }}
+{{- end }}
+{{- range $img := .AdditionalImages }}
+    - name: {{ $img }}
+{{- end }}
 {{- if eq .Channel "4.10" }}
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
