@@ -1,4 +1,4 @@
-module github.com/rcarrillocruz/factory-precaching-cli
+module github.com/openshift-kni/telco-ran-tools
 
 go 1.17
 
