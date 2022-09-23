@@ -35,7 +35,8 @@ var downloadCmd = &cobra.Command{
 		aiAgentSha, _ := cmd.Flags().GetString("ai-agent-sha")
 		aiControllerSha, _ := cmd.Flags().GetString("ai-controller-sha")
 		additionalImages, _ := cmd.Flags().GetStringSlice("img")
-		download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages)
+		rmStale, _ := cmd.Flags().GetBool("rm-stale")
+		download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages, rmStale)
 	},
 }
 
@@ -49,20 +50,27 @@ func init() {
 	downloadCmd.Flags().StringP("ai-agent-sha", "g", "", "AI Agent Image SHA")
 	downloadCmd.Flags().StringP("ai-controller-sha", "c", "", "AI Controller Image SHA")
 	downloadCmd.Flags().StringSliceP("img", "a", []string{}, "Additional Image(s)")
+	downloadCmd.Flags().BoolP("rm-stale", "s", false, "Remove stale images")
 	rootCmd.AddCommand(downloadCmd)
 }
 
 type ImageSet struct {
 	Channel                        string
 	Version                        string
-	AssistedInstallerAgentSHA      string
 	AssistedInstallerSHA           string
+	AssistedInstallerAgentSHA      string
 	AssistedInstallerControllerSHA string
 	AdditionalImages               []string
 }
 
+type ImageMapping struct {
+	Image        string
+	ImageMapping string
+	Artifact     string
+}
+
 func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
-	return exec.Command("oc-mirror", "-c", folder+"/imageset.yaml", "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
+	return exec.Command("oc-mirror", "-c", path.Join(folder, "imageset.yaml"), "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
 }
 
 func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd {
@@ -70,15 +78,15 @@ func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
-	return exec.Command("tar", "czvf", folder+"/"+artifact+".tgz", "-C", folder, artifact)
+	return exec.Command("tar", "czvf", path.Join(folder, artifact+".tgz"), "-C", folder, artifact)
 }
 
 func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
-	return exec.Command("rm", "-rf", folder+"/"+artifact)
+	return exec.Command("rm", "-rf", path.Join(folder, artifact))
 }
 
 func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
-	return exec.Command("cp", tmpFolder+"/mirror/oc-mirror-workspace/mapping.txt", folder+"/mapping.txt")
+	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
 }
 
 func templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string) {
@@ -88,7 +96,7 @@ func templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControlle
 		os.Exit(1)
 	}
 
-	f, err := os.Create(folder + "/imageset.yaml")
+	f, err := os.Create(path.Join(folder, "imageset.yaml"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse imageset.yaml file: %v\n", err)
 		os.Exit(1)
@@ -120,7 +128,7 @@ func downloadRootFsFile(release, folder, url string) error {
 	r := strings.Split(release, ".")
 	channel := r[0] + "." + r[1]
 
-	out, err := os.Create(folder + "/rhcos-live-rootfs.x86_64.img")
+	out, err := os.Create(path.Join(folder, "rhcos-live-rootfs.x86_64.img"))
 	if err != nil {
 		return err
 	}
@@ -172,7 +180,7 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 	}
 }
 
-func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string) {
+func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string, rmStale bool) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
@@ -186,7 +194,7 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 	}
 
 	if rootFsFilename != "" {
-		_, err = os.Stat(folder + rootFsFilename)
+		_, err = os.Stat(path.Join(folder, rootFsFilename))
 		if err != nil {
 			fmt.Fprintf(os.Stdout, "Downloading release rootFS image %s...\n", url)
 			err = downloadRootFsFile(release, folder, url)
@@ -199,39 +207,36 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 
 	templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages)
 
-	_, err = os.Stat(folder + "/mapping.txt")
+	fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
+	cmd := generateOcMirrorCommand(tmpDir, folder)
+	stdout, err := executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
-		cmd := generateOcMirrorCommand(tmpDir, folder)
-		stdout, err := executeCommand(cmd)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-			os.Exit(1)
-		}
-
-		cmd = generateMoveMappingFileCommand(tmpDir, folder)
-		stdout, err = executeCommand(cmd)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-			os.Exit(1)
-		}
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		os.Exit(1)
 	}
 
-	mappingFile, err := os.Open(folder + "/mapping.txt")
+	cmd = generateMoveMappingFileCommand(tmpDir, folder)
+	stdout, err = executeCommand(cmd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		os.Exit(1)
+	}
+
+	mappingFile, err := os.Open(path.Join(folder, "mapping.txt"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open mapping.txt file: %v\n", err)
 		os.Exit(1)
 	}
 	defer mappingFile.Close()
 
-	aiImagesFile, err := os.OpenFile(folder+"/ai-images.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	aiImagesFile, err := os.OpenFile(path.Join(folder, "ai-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open ai-images.txt file: %v\n", err)
 		os.Exit(1)
 	}
 	defer aiImagesFile.Close()
 
-	ocpImagesFile, err := os.OpenFile(folder+"/ocp-images.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	ocpImagesFile, err := os.OpenFile(path.Join(folder, "ocp-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open ocp-images.txt file: %v\n", err)
 		os.Exit(1)
@@ -241,6 +246,8 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 	fileScanner := bufio.NewScanner(mappingFile)
 	fileScanner.Split(bufio.ScanLines)
 
+	var images []ImageMapping
+
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
 		splittedLine := strings.Split(line, "=")
@@ -249,31 +256,86 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 		splittedImage := strings.Split(image, "/")
 		artifact := splittedImage[len(splittedImage)-1]
 		artifact = strings.Replace(artifact, ":", "_", 1)
-		fmt.Fprintf(os.Stdout, "Processing artifact %s\n", artifact)
-		_, err = os.Stat(folder + "/" + artifact + ".tgz")
+
+		images = append(images, ImageMapping{image, imageMapping, artifact})
+	}
+
+	if rmStale {
+		expectedTarfiles := map[string]bool{}
+		for _, image := range images {
+			expectedTarfiles[image.Artifact+".tgz"] = true
+		}
+
+		files, err := ioutil.ReadDir(folder)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to readdir: %s\n", folder)
+		}
+
+		for _, file := range files {
+			if strings.HasSuffix(file.Name(), ".tgz") && !expectedTarfiles[file.Name()] {
+				fmt.Printf("Deleting stale image: %s\n", file.Name())
+				fpath := path.Join(folder, file.Name())
+				err = os.Remove(fpath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Unable to delete %s: %s\n", fpath, err)
+					os.Exit(1)
+				}
+			}
+		}
+	}
+
+	for _, image := range images {
+		fmt.Fprintf(os.Stdout, "Processing artifact %s\n", image.Artifact)
+		artifactTar := image.Artifact + ".tgz"
+		_, err = os.Stat(path.Join(folder, artifactTar))
 		if err == nil {
 			// File exists, thus it's been already downloaded and tarballed, moving on...
-			fmt.Fprintf(os.Stdout, "File %s.tgz already exists, skipping...\n", artifact)
-			continue
+			fmt.Fprintf(os.Stdout, "File %s.tgz already exists, skipping...\n", image.Artifact)
+		} else {
+			scratchdir := path.Join(folder, "scratch")
+			_, err = os.Stat(scratchdir)
+			if err == nil {
+				err = os.RemoveAll(scratchdir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", path.Join(folder, image.Artifact), err)
+					os.Exit(1)
+				}
+			}
+
+			err = os.Mkdir(scratchdir, 0755)
+
+			cmd := generateSkopeoCopyCommand(scratchdir, image.Artifact, image.Image)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: Failed to mkdir %s: %s", scratchdir, err)
+				os.Exit(1)
+			}
+
+			stdout, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+				os.Exit(1)
+			}
+
+			cmd = generateTarArtifactCommand(scratchdir, image.Artifact)
+			stdout, err = cmd.CombinedOutput()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+				os.Exit(1)
+			}
+
+			err = os.Rename(path.Join(scratchdir, artifactTar), path.Join(folder, artifactTar))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: unable to move file %s: %e\n", path.Join(scratchdir, artifactTar), err)
+				os.Exit(1)
+			}
+
+			err = os.RemoveAll(scratchdir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", scratchdir, err)
+				os.Exit(1)
+			}
 		}
-		saveToImagesFile(image, imageMapping, aiImagesFile, ocpImagesFile)
-		cmd := generateSkopeoCopyCommand(folder, artifact, image)
-		stdout, err := cmd.CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-			os.Exit(1)
-		}
-		cmd = generateTarArtifactCommand(folder, artifact)
-		stdout, err = cmd.CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-			os.Exit(1)
-		}
-		cmd = generateRemoveArtifactCommand(folder, artifact)
-		stdout, err = cmd.CombinedOutput()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-			os.Exit(1)
-		}
+
+		saveToImagesFile(image.Image, image.ImageMapping, aiImagesFile, ocpImagesFile)
 	}
 }
