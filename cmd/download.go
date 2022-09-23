@@ -57,8 +57,8 @@ func init() {
 type ImageSet struct {
 	Channel                        string
 	Version                        string
-	AssistedInstallerAgentSHA      string
 	AssistedInstallerSHA           string
+	AssistedInstallerAgentSHA      string
 	AssistedInstallerControllerSHA string
 	AdditionalImages               []string
 }
@@ -294,7 +294,7 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 		} else {
 			scratchdir := path.Join(folder, "scratch")
 			_, err = os.Stat(scratchdir)
-			if err != nil {
+			if err == nil {
 				err = os.RemoveAll(scratchdir)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", path.Join(folder, image.Artifact), err)
