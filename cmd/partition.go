@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -36,7 +37,16 @@ func generatePartitionCommand(device string, size int) *exec.Cmd {
 }
 
 func generateFormatCommand(device string) *exec.Cmd {
-	return exec.Command("mkfs.xfs", "-f", device+"1")
+	// if device ends with a number a 'p' is included in the partition name
+	val, err := strconv.Atoi(device[len(device)-1:])
+	_ = val
+	if err != nil {
+		fmt.Printf("Partition %s1 is being formatted\n", device)
+		return exec.Command("mkfs.xfs", "-f", device+"1")
+	} else {
+		fmt.Printf("Partition %sp1 is being formatted\n", device)
+		return exec.Command("mkfs.xfs", "-f", device+"p1")
+	}
 }
 
 func partition(device string, size int) {
