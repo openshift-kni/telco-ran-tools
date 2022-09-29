@@ -74,7 +74,8 @@ func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
 }
 
 func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd {
-	return exec.Command("skopeo", "copy", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q", "--retry-times", "10")
+	// copies container images from registry to local disk. Notice --all arg copies all architectures for a multi-arch container image
+	return exec.Command("skopeo", "copy", "--all", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q", "--retry-times", "10")
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
