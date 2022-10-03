@@ -5,14 +5,28 @@ IMAGETAG ?= latest
 
 all: dist
 
+.PHONY: fmt
+fmt: ## Run go fmt against code.
+	@echo "Running go fmt"
+	go fmt ./...
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	@echo "Running go vet"
+	go vet ./...
+
+.PHONY: check-git-tree
+check-git-tree: # If generated code is added in the future, add generation dependency here
+	hack/check-git-tree.sh
+
 .PHONY: build
 build: dist
 
 .PHONY: ci-job-e2e
-ci-job-e2e: test-e2e
+ci-job-e2e: test-e2e check-git-tree
 
 .PHONY: ci-job-unit
-ci-job-unit: test-unit
+ci-job-unit: fmt vet test-unit check-git-tree
 
 outdir:
 	mkdir -p _output || :
@@ -29,7 +43,7 @@ deps-clean:
 dist: binaries
 
 .PHONY: binaries
-binaries: outdir deps-update
+binaries: outdir deps-update fmt vet
 	# go flags are set in here
 	./hack/build-binaries.sh
 
