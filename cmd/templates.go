@@ -11,11 +11,6 @@ mirror:
       minVersion: {{ .Version }}
       maxVersion: {{ .Version }}
   additionalImages:
-    - name: {{ .AIAgentImage }}
-    - name: {{ .AIInstallerImage }}
-{{- if ne .AIControllerImage "" }}
-    - name: {{ .AIControllerImage }}
-{{- end }}
 {{- range $img := .AdditionalImages }}
     - name: {{ $img }}
 {{- end }}
