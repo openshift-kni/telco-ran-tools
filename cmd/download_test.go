@@ -18,7 +18,7 @@ func TestGenerateSkopeoCopyCommand(t *testing.T) {
 	c := generateSkopeoCopyCommand("/tmp/mnt",
 		"assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39",
 		"registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39")
-	want := "copy docker://registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39 dir:///tmp/mnt/assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39 -q --retry-times 10"
+	want := "copy --all docker://registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39 dir:///tmp/mnt/assisted-installer-agent-rhel8@sha256_54f7376e521a3b22ddeef63623fc7256addf62a9323fa004c7f48efa7388fe39 -q --retry-times 10"
 
 	if strings.Join(c.Args[1:], " ") != want {
 		t.Errorf("got %s, want %s", c, want)
