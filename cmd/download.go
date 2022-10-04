@@ -20,8 +20,8 @@ import (
 )
 
 // Using SHAs for ACM 2.5.1 as defaults
-const ACMDefaultAssistedInstallerAgentSHA = "sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
-const ACMDefaultAssistedInstallerSHA = "sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
+const ACMDefaultAIAgentImage = "registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
+const ACMDefaultAIInstallerImage = "registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
 
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
@@ -31,12 +31,12 @@ var downloadCmd = &cobra.Command{
 		folder, _ := cmd.Flags().GetString("folder")
 		release, _ := cmd.Flags().GetString("release")
 		url, _ := cmd.Flags().GetString("rootfs-url")
-		aiInstallerSha, _ := cmd.Flags().GetString("ai-installer-sha")
-		aiAgentSha, _ := cmd.Flags().GetString("ai-agent-sha")
-		aiControllerSha, _ := cmd.Flags().GetString("ai-controller-sha")
+		aiImages, _ := cmd.Flags().GetStringSlice("ai-img")
 		additionalImages, _ := cmd.Flags().GetStringSlice("img")
 		rmStale, _ := cmd.Flags().GetBool("rm-stale")
-		download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages, rmStale)
+		generateImageSet, _ := cmd.Flags().GetBool("generate-imageset")
+		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, skipImageSet)
 	},
 }
 
@@ -46,21 +46,18 @@ func init() {
 	downloadCmd.Flags().StringP("release", "r", "", "OpenShift release version")
 	downloadCmd.MarkFlagRequired("folder")
 	downloadCmd.Flags().StringP("rootfs-url", "u", "", "rootFS URL")
-	downloadCmd.Flags().StringP("ai-installer-sha", "i", "", "AI Installer Image SHA")
-	downloadCmd.Flags().StringP("ai-agent-sha", "g", "", "AI Agent Image SHA")
-	downloadCmd.Flags().StringP("ai-controller-sha", "c", "", "AI Controller Image SHA")
+	downloadCmd.Flags().StringSliceP("ai-img", "i", []string{}, "Assisted Installer Image(s)")
 	downloadCmd.Flags().StringSliceP("img", "a", []string{}, "Additional Image(s)")
 	downloadCmd.Flags().BoolP("rm-stale", "s", false, "Remove stale images")
+	downloadCmd.Flags().Bool("generate-imageset", false, "Generate imageset.yaml only")
+	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
 	rootCmd.AddCommand(downloadCmd)
 }
 
 type ImageSet struct {
-	Channel                        string
-	Version                        string
-	AssistedInstallerSHA           string
-	AssistedInstallerAgentSHA      string
-	AssistedInstallerControllerSHA string
-	AdditionalImages               []string
+	Channel          string
+	Version          string
+	AdditionalImages []string
 }
 
 type ImageMapping struct {
@@ -89,7 +86,7 @@ func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
 }
 
-func templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string) {
+func templatizeImageset(release, folder string, aiImages, additionalImages []string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
@@ -108,15 +105,9 @@ func templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControlle
 	version := release
 
 	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
-	if aiInstallerSha == "" {
-		aiInstallerSha = ACMDefaultAssistedInstallerSHA
-	}
 
-	if aiAgentSha == "" {
-		aiAgentSha = ACMDefaultAssistedInstallerAgentSHA
-	}
-
-	d := ImageSet{channel, version, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages}
+	images := append(aiImages, additionalImages...)
+	d := ImageSet{channel, version, images}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
@@ -148,10 +139,23 @@ func downloadRootFsFile(release, folder, url string) error {
 	return nil
 }
 
-func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, ocpImagesFile *os.File) {
+// Once upgraded to GO 1.18, this function can be replaced by slices.Contains
+func contains(stringlist []string, s string) bool {
+	for _, item := range stringlist {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFile *os.File, ocpImagesFile *os.File) {
 	splittedImageMapping := strings.Split(imageMapping, ":")
-	if strings.HasPrefix(splittedImageMapping[0], "multicluster-engine") {
+	if contains(aiImages, image) {
 		aiImagesFile.WriteString(image + "\n")
+		if strings.Contains(splittedImageMapping[0], "assisted-installer-reporter") {
+			ocpImagesFile.WriteString(image + "\n")
+		}
 	} else if splittedImageMapping[0] == "openshift/release-images" {
 		aiImagesFile.WriteString(image + "\n")
 		ocpImagesFile.WriteString(image + "\n")
@@ -180,7 +184,9 @@ func saveToImagesFile(image string, imageMapping string, aiImagesFile *os.File, 
 	}
 }
 
-func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha string, additionalImages []string, rmStale bool) {
+func download(folder, release, url string,
+	aiImages, additionalImages []string,
+	rmStale, generateImageSet, skipImageSet bool) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
@@ -205,7 +211,27 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 		}
 	}
 
-	templatizeImageset(release, folder, aiInstallerSha, aiAgentSha, aiControllerSha, additionalImages)
+	if len(aiImages) == 0 {
+		// No AI images specified, so use defaults
+		aiImages = append(aiImages, ACMDefaultAIAgentImage, ACMDefaultAIInstallerImage)
+	}
+
+	imagesetFile := path.Join(folder, "imageset.yaml")
+
+	if !skipImageSet {
+		templatizeImageset(release, folder, aiImages, additionalImages)
+
+		fmt.Printf("Generated %s\n", imagesetFile)
+		if generateImageSet {
+			os.Exit(0)
+		}
+	} else {
+		_, err = os.Stat(imagesetFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "--skip-imageset specified, but %s not found", imagesetFile)
+			os.Exit(1)
+		}
+	}
 
 	fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
 	cmd := generateOcMirrorCommand(tmpDir, folder)
@@ -336,6 +362,6 @@ func download(folder, release, url, aiInstallerSha, aiAgentSha, aiControllerSha 
 			}
 		}
 
-		saveToImagesFile(image.Image, image.ImageMapping, aiImagesFile, ocpImagesFile)
+		saveToImagesFile(image.Image, image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
 	}
 }
