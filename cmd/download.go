@@ -36,7 +36,7 @@ var downloadCmd = &cobra.Command{
 		rmStale, _ := cmd.Flags().GetBool("rm-stale")
 		generateImageSet, _ := cmd.Flags().GetBool("generate-imageset")
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, skipImageSet)
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, skipImageSet, args)
 	},
 }
 
@@ -187,7 +187,13 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
-	rmStale, generateImageSet, skipImageSet bool) {
+	rmStale, generateImageSet, skipImageSet bool,
+	extraArgs []string) {
+	if len(extraArgs) > 0 {
+		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
+		os.Exit(1)
+	}
+
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
