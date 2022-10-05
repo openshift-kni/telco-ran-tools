@@ -22,6 +22,7 @@ var partitionCmd = &cobra.Command{
 		size, _ := cmd.Flags().GetInt("size")
 		partition(device, size)
 	},
+	Version: Version,
 }
 
 func init() {

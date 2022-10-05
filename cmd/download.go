@@ -38,6 +38,7 @@ var downloadCmd = &cobra.Command{
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
 		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, skipImageSet)
 	},
+	Version: Version,
 }
 
 func init() {

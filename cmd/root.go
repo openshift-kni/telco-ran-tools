@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var Version = "0.0.0"
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "factory-precaching-cli",
@@ -17,6 +19,7 @@ var rootCmd = &cobra.Command{
 	Long: `factory-precaching-cli is a tool that facilitates pre-caching OpenShift artifacts
 in servers to avoid downloading them at provisioning time.
 `,
+	Version: Version,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },

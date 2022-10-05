@@ -1,17 +1,9 @@
 FROM mirror.gcr.io/library/golang:1.18 as builder
 
 WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-COPY vendor/ vendor/
 
-# Copy the go source
-COPY main.go main.go
-COPY cmd/ cmd/
-COPY pkg/ pkg/
-
-COPY hack/ hack/
+# Copy full workspace for git version info
+COPY . .
 
 # Build
 RUN hack/build-binaries.sh
