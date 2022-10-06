@@ -9,7 +9,8 @@ BASEDIR="${HACKDIR}/.."
 export GO_PACKAGE=$(go list -mod=vendor -m -f '{{ .Path }}')
 export SOURCE_GIT_BRANCH=$(git branch --show-current 2>/dev/null)
 export SOURCE_GIT_COMMIT=$(git rev-parse --short "HEAD^{commit}" 2>/dev/null)
-export SOURCE_GIT_TREE_STATE=$(git diff --quiet >&/dev/null || echo '+dirty')
+# The formal build modifies the Dockerfile, so restrict the git-tree check to specific dirs/files
+export SOURCE_GIT_TREE_STATE=$(git diff --quiet cmd pkg vendor go.mod go.sum main.go >&/dev/null || echo '+dirty')
 export BUILD_DATE=$(date -u +'%Y%m%d.%H%M%S')
 export VERSION_STR="${BUILD_DATE}+${SOURCE_GIT_BRANCH}.${SOURCE_GIT_COMMIT}${SOURCE_GIT_TREE_STATE}"
 
