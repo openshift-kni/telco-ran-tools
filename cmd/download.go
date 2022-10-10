@@ -35,8 +35,9 @@ var downloadCmd = &cobra.Command{
 		additionalImages, _ := cmd.Flags().GetStringSlice("img")
 		rmStale, _ := cmd.Flags().GetBool("rm-stale")
 		generateImageSet, _ := cmd.Flags().GetBool("generate-imageset")
+		duProfile, _ := cmd.Flags().GetBool("du-profile")
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, skipImageSet, args)
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, args)
 	},
 }
 
@@ -50,6 +51,7 @@ func init() {
 	downloadCmd.Flags().StringSliceP("img", "a", []string{}, "Additional Image(s)")
 	downloadCmd.Flags().BoolP("rm-stale", "s", false, "Remove stale images")
 	downloadCmd.Flags().Bool("generate-imageset", false, "Generate imageset.yaml only")
+	downloadCmd.Flags().Bool("du-profile", false, "Pre-cache telco 5G DU operators")
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
 	rootCmd.AddCommand(downloadCmd)
 }
@@ -58,6 +60,7 @@ type ImageSet struct {
 	Channel          string
 	Version          string
 	AdditionalImages []string
+	DuProfile        bool
 }
 
 type ImageMapping struct {
@@ -87,7 +90,7 @@ func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
 }
 
-func templatizeImageset(release, folder string, aiImages, additionalImages []string) {
+func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
@@ -108,7 +111,7 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
 
 	images := append(aiImages, additionalImages...)
-	d := ImageSet{channel, version, images}
+	d := ImageSet{channel, version, images, duProfile}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
@@ -187,8 +190,8 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
-	rmStale, generateImageSet, skipImageSet bool,
-	extraArgs []string) {
+	rmStale, generateImageSet, duProfile bool,
+	skipImageSet bool, extraArgs []string) {
 	if len(extraArgs) > 0 {
 		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
 		os.Exit(1)
@@ -226,7 +229,7 @@ func download(folder, release, url string,
 	imagesetFile := path.Join(folder, "imageset.yaml")
 
 	if !skipImageSet {
-		templatizeImageset(release, folder, aiImages, additionalImages)
+		templatizeImageset(release, folder, aiImages, additionalImages, duProfile)
 
 		fmt.Printf("Generated %s\n", imagesetFile)
 		if generateImageSet {
@@ -316,9 +319,10 @@ func download(folder, release, url string,
 			}
 		}
 	}
-
-	for _, image := range images {
-		fmt.Fprintf(os.Stdout, "Processing artifact %s\n", image.Artifact)
+	var currentImage int = 1
+	for i, image := range images {
+		var imagesLength int = len(images) - 1
+		fmt.Fprintf(os.Stdout, "Processing artifact [%d/%d]: %s\n", i, imagesLength, image.Artifact)
 		artifactTar := image.Artifact + ".tgz"
 		_, err = os.Stat(path.Join(folder, artifactTar))
 		if err == nil {
@@ -370,5 +374,6 @@ func download(folder, release, url string,
 		}
 
 		saveToImagesFile(image.Image, image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
+		currentImage++
 	}
 }
