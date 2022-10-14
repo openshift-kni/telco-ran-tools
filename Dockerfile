@@ -26,6 +26,7 @@ RUN curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-previ
 
 COPY run.sh /run.sh
 COPY help.sh /help.sh
+COPY policy.json /etc/containers/policy.json
 
 COPY --from=builder /workspace/_output/ /usr/local/bin/
 

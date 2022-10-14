@@ -190,8 +190,8 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
-	rmStale, generateImageSet, duProfile bool,
-	skipImageSet bool, extraArgs []string) {
+	rmStale, generateImageSet, duProfile, skipImageSet bool,
+	extraArgs []string) {
 	if len(extraArgs) > 0 {
 		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
 		os.Exit(1)
@@ -319,10 +319,8 @@ func download(folder, release, url string,
 			}
 		}
 	}
-	var currentImage int = 1
 	for i, image := range images {
-		var imagesLength int = len(images) - 1
-		fmt.Fprintf(os.Stdout, "Processing artifact [%d/%d]: %s\n", i, imagesLength, image.Artifact)
+		fmt.Fprintf(os.Stdout, "Processing artifact [%d/%d]: %s\n", i+1, len(images), image.Artifact)
 		artifactTar := image.Artifact + ".tgz"
 		_, err = os.Stat(path.Join(folder, artifactTar))
 		if err == nil {
@@ -374,6 +372,5 @@ func download(folder, release, url string,
 		}
 
 		saveToImagesFile(image.Image, image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
-		currentImage++
 	}
 }
