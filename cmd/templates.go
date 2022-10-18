@@ -30,17 +30,21 @@ mirror:
 #        - name: cluster-logging
 #          channels:
 #            - name: 'stable'
-{{- if eq .Channel "4.10" }}
+{{- if .DuProfile }}
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
-      full: true
       packages:
-        - name: odf-lvm-operator
+#        - name: advanced-cluster-management
+#          channels:
+#             - name: 'release-2.6'
+#             - name: 'release-2.5'
+#        - name: multicluster-engine
+#          channels:
+#             - name: 'stable-2.1'
+#             - name: 'stable-2.0'
+        - name: local-storage-operator
           channels:
-            - name: 'stable-{{ .Channel }}'
-        - name: performance-addon-operator
-          channels:
-            - name: '{{ .Channel }}'
+            - name: 'stable'
         - name: ptp-operator
           channels:
             - name: 'stable'
@@ -50,14 +54,7 @@ mirror:
         - name: cluster-logging
           channels:
             - name: 'stable'
-        - name: ocs-operator
-          channels:
-            - name: 'stable-{{ .Channel }}'
-        - name: local-storage-operator
-          channels:
-            - name: 'stable'
     - catalog: registry.redhat.io/redhat/certified-operator-index:v{{ .Channel }}
-      full: true
       packages:
         - name: sriov-fec
           channels:
