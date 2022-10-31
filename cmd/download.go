@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -37,7 +38,8 @@ var downloadCmd = &cobra.Command{
 		generateImageSet, _ := cmd.Flags().GetBool("generate-imageset")
 		duProfile, _ := cmd.Flags().GetBool("du-profile")
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, args)
+		hubVersion, _ := cmd.Flags().GetString("hub-version")
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, args)
 	},
 	Version: Version,
 }
@@ -54,6 +56,8 @@ func init() {
 	downloadCmd.Flags().Bool("generate-imageset", false, "Generate imageset.yaml only")
 	downloadCmd.Flags().Bool("du-profile", false, "Pre-cache telco 5G DU operators")
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
+	downloadCmd.Flags().StringP("hub-version", "", "", "RHACM operator version in a.x.z format")
+	downloadCmd.MarkFlagRequired("hub-version")
 	rootCmd.AddCommand(downloadCmd)
 }
 
@@ -62,6 +66,7 @@ type ImageSet struct {
 	Version          string
 	AdditionalImages []string
 	DuProfile        bool
+	HubVersion       string
 }
 
 type ImageMapping struct {
@@ -91,7 +96,7 @@ func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
 }
 
-func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool) {
+func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, hubVersion string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
@@ -109,10 +114,18 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	channel := r[0] + "." + r[1]
 	version := release
 
+	// Validate hub version is something like x.y.z
+
+	match, err := regexp.MatchString("^[0-9]\\.[0-9]+\\.[0-9]+$", hubVersion)
+	if match == false {
+		fmt.Fprintf(os.Stderr, "error: incorrect Hub version. ex: 2.5.4. %v\n", err)
+		os.Exit(1)
+	}
+
 	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
 
 	images := append(aiImages, additionalImages...)
-	d := ImageSet{channel, version, images, duProfile}
+	d := ImageSet{channel, version, images, duProfile, hubVersion}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
@@ -192,7 +205,7 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
-	extraArgs []string) {
+	hubVersion string, extraArgs []string) {
 	if len(extraArgs) > 0 {
 		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
 		os.Exit(1)
@@ -230,7 +243,7 @@ func download(folder, release, url string,
 	imagesetFile := path.Join(folder, "imageset.yaml")
 
 	if !skipImageSet {
-		templatizeImageset(release, folder, aiImages, additionalImages, duProfile)
+		templatizeImageset(release, folder, aiImages, additionalImages, duProfile, hubVersion)
 
 		fmt.Printf("Generated %s\n", imagesetFile)
 		if generateImageSet {
