@@ -49,7 +49,7 @@ The binary can be found in _output/factory-precaching-cli
 
 Detailed information and examples of each stage can be found in the following links:
 
-* [Booting RHCOS live](docs/liveiso.md)
+* [Booting RHCOS live](docs/liveos.md)
 * [Partitioning](docs/partitioning.md)
 * [Downloading the artifacts](docs/downloading.md)
 * [ZTP configuration for precaching](docs/ztp-precaching.md)
