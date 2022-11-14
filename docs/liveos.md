@@ -10,6 +10,7 @@ We want to focus on target servers where only one disk is available and no exter
 
 Technically you can boot from any live ISO that provides container tools such as podman. However, the supported and tested OS is Red Hat CoreOS. You can obtain the latest live ISO from [here](https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/latest/rhcos-live.x86_64.iso)
 
+### Example: Mounting on a Dell Server
 If you are running the install on a Dell Server you can use this simple script that leverages racadm to mount RHCOS live ISO from a local HTTPd server.
 
 ```
