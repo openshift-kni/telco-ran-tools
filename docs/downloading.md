@@ -10,10 +10,10 @@ This downloading stage manage both the pull of the OCP release images, and if re
 
 ## Pre-requisites
 
-* The [partitioning stage](../partitioning.md) must be already executed successfully before moving to the downloading stage. In this last step is where all artifacts are stored on the local partition.
+* The [partitioning stage](./partitioning.md) must be already executed successfully before moving to the downloading stage. In this last step is where all artifacts are stored on the local partition.
 * Currently the bare metal server needs to be connected to the Internet to obtain the dependency of OCP release images that need to be pulled down.
 * A valid pull secret to the registries involved in the downloading process of the container images is required. At least the pull secret that authenticates against the official Red Hat registries is required. It can be obtained from the [Red Hat's console UI](https://console.redhat.com/openshift/downloads#tool-pull-secret)
-* Enough space in the partition where the artifacts are going to be stored is required. More information can be found on [Partitioning pre-requisites](../partitioning/#pre-requisites) section.
+* Enough space in the partition where the artifacts are going to be stored is required. More information can be found on [Partitioning pre-requisites](./partitioning.md/#pre-requisites) section.
 
 
  ## Downloading the artifacts
