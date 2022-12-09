@@ -30,7 +30,6 @@ mirror:
 #        - name: cluster-logging
 #          channels:
 #            - name: 'stable'
-{{- if .DuProfile }}
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
       packages:
@@ -58,6 +57,7 @@ mirror:
                minVersion: 2.0.{{ slice .HubVersion 4 5 }}
                maxVersion: 2.0.{{ slice .HubVersion 4 5 }}
   {{- end}}        
+  {{- if .DuProfile }}
         - name: local-storage-operator
           channels:
             - name: 'stable'
