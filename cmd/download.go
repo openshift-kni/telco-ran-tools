@@ -180,6 +180,7 @@ func imageDownloader(wg *sync.WaitGroup, workerId int, jobs chan DownloadJob, re
 		} else {
 			results <- DownloadResult{job.Image, (err == nil)}
 		}
+
 		if len(jobs) == 0 {
 			// Job queue is empty, so we can exit the worker
 			return
@@ -482,13 +483,18 @@ func download(folder, release, url string,
 		fmt.Fprintf(os.Stdout, "%d images previously downloaded.\n", previous)
 	}
 
-	fmt.Fprintf(os.Stdout, "Queueing %d of %d images for download, with %d workers.\n\n", totalJobs, totalImages, maxParallel)
+	workers := maxParallel
+	if totalJobs < workers {
+		workers = totalJobs
+	}
+
+	fmt.Fprintf(os.Stdout, "Queueing %d of %d images for download, with %d workers.\n\n", totalJobs, totalImages, workers)
 	startTime := time.Now()
 
 	wg := sync.WaitGroup{}
 
 	// Create imageDownloader workers
-	for i := 0; i < maxParallel; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go imageDownloader(&wg, i, jobs, results, folder)
 	}
