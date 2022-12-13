@@ -111,22 +111,34 @@ The factory-precaching-cli tool allows us to precache all the container images r
 Generated /mnt/imageset.yaml
 Generating list of pre-cached artifacts...
 
-Queueing 175 of 175 images for download, with 83 workers.
+Queueing 176 of 176 images for download, with 83 workers.
 
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:f68c0e6f5e17b0b0f7ab2d4c39559ea89f900751e64b97cb42311a478338d9c3
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7753a8d9dd5974be8c90649aadd7c914a3d8a1f1e016774c7ac7c9422e9f9958
 Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:370e47a14c798ca3f8707a38b28cfc28114f492bb35fe1112e55d1eb51022c99
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:2b3dae7d4858ea5b4db589a04d5d30c50177085a3a7fa768e3507f7c3c3fb120
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ee51b062b9c3c9f4fe77bd5b3cc9a3b12355d040119a1434425a824f137c61a9
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:535f49d0147cbbfbdd3759b09eeef8968ea3de9dc1e2156721726566abcaeb57
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:e8f55ebd974f99b7056e1fa308d9abacfa285758e9ee055f8ed8438f410f1325
 ...
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:b008d8526ffdf997d62309ec12e7b6ba673f76235a5ffe7236db57f407dc24ba
-Downloaded artifact [1/175]: ocp-v4.0-art-dev@sha256_174b4f8995157d0f1b5533c9d179c1eb681415a0bd092b4c1b14c2ed1f28083c
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:c7cf9437d2b8aae03f49793f4f3f3684c8948c849f2838d53ad8472dadc62677
-Downloaded artifact [2/175]: ocp-v4.0-art-dev@sha256_d44c355a799955de2bdf34a598673ecbadd1c25505057a9d7449b1d11a3d6ec4
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:39d850d6d18d2e00d9501ffec0836f911619e3e2fdc57a01ca3ae6992e6667db
-Downloaded artifact [3/175]: ocp-v4.0-art-dev@sha256_c5ba93680ec2c9e0ca419424fa6b2416fa542287420499dc655f03b968564013
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:edec37e7cd8b1611d0031d45e7958361c65e2005f145b471a8108f1b54316c07
+Downloaded artifact [1/176]: ocp-v4.0-art-dev@sha256_4f04793bd109ecba2dfe43be93dc990ac5299272482c150bd5f2eee0f80c983b
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:94ade3f187a4c32597c7f1f1a3bbea6849f4c31dc28e61e05fc0a5c303e8fecd
+Downloaded artifact [2/176]: ocp-v4.0-art-dev@sha256_5a862d169b7093d18235bf6029bc03ab298a1af2806224fb50771ee7c7a0b82e
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:f48b68d5960ba903a0d018a10544ae08db5802e21c2fa5615a14fc58b1c1657c
+Downloaded artifact [3/176]: ocp-v4.0-art-dev@sha256_a190cc6dfb86080ff1c31ba717635f5a948b0b75772cd5ba10ffa09dcd6e6daa
 ...
-Downloaded artifact [175/175]: ocp-v4.0-art-dev@sha256_e68d705c63061c735fb00f0d2fec361d2d6dfa854a8cc05a92753c08fbaf4684
-175 images of 175 downloaded, with 83 workers, in: 4m10.580718762s
+Downloaded artifact [176/176]: ocp-v4.0-art-dev@sha256_e68d705c63061c735fb00f0d2fec361d2d6dfa854a8cc05a92753c08fbaf4684
+
+Summary:
+
+Release:                            4.11.5
+Hub Version:                        2.5.4
+Include DU Profile:                 No
+Workers:                            83
+
+Total Images:                       176
+Downloaded:                         176
+Skipped (Previously Downloaded):    0
+Download Failures:                  0
+Time for Download:                  4m16s
 ```
 
 Verify that all the images are compressed in the target folder (it is suggested to be /mnt) of the bare metal server:
@@ -170,28 +182,39 @@ Notice that you need also to include the ACM hub version, using `--hub-version`,
 Generated /mnt/imageset.yaml
 Generating list of pre-cached artifacts...
 
-Queueing 375 of 375 images for download, with 83 workers.
+Queueing 376 of 376 images for download, with 83 workers.
 
-Downloading: registry.connect.redhat.com/intel/sriov-fec-daemon@sha256:d7b91d4bf4e57415f9a9ca46619d98bfafe5e2d7c5e8072dedd2bcd638725c8d
-Downloading: registry.redhat.io/openshift4/ose-ptp@sha256:7795151ae4b3369a6d8a5c14e16b3fbbcba58bb4c852c542d2471fbb4fab7713
-Downloading: registry.redhat.io/multicluster-engine/agent-service-rhel8@sha256:4d43dbb43242d98b7f1ed60dbd8613c909a3f9ac86c6ebd5e74b2c47c5d733e9
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:b755466cb222868097e77b8450f95ee8c04b62687201fbf812ef7b5db384729b
-Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:e8f55ebd974f99b7056e1fa308d9abacfa285758e9ee055f8ed8438f410f1325
-Downloading: registry.redhat.io/openshift-logging/log-file-metric-exporter-rhel8@sha256:4e850fced9cc85ff23cb60ec8628f581b32f36313714a205c67c9a088a1b4f74
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:c7cf9437d2b8aae03f49793f4f3f3684c8948c849f2838d53ad8472dadc62677
+Downloading: registry.redhat.io/rhacm2/acm-volsync-addon-controller-rhel8@sha256:548c1b6121c3f0d0269bf9347a25c83bf7ed98360b0828f0a3faea0d7ded05d0
+Downloading: registry.redhat.io/rhacm2/insights-client-rhel8@sha256:a49d0c97e5daae7835e935f5d10f937c05d89edd29c452a675d34789d72849c0
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:a5267b46513453509e4d189c2621a2f578f216e85d78e22f885e8c358f954dd3
+Downloading: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:7456e7a6c1c4d1161a2ff1df57228a86d56c2cf6054d4ea65ad6b45404088293
 ...
-Downloading: registry.redhat.io/multicluster-engine/clusterclaims-controller-rhel8@sha256:6d1333b2db47a9c299e63494962e1a5bb109c143a1296acf7145303d61211332
-Downloaded artifact [1/375]: ose-local-storage-operator-bundle@sha256_341ccfb41fb53eda21a940fb69d814a8927ad8c81b91b2544f5ddac311b07602
-Downloaded artifact [2/375]: ocp-v4.0-art-dev@sha256_e9606f66904be6a38dfa0f80fca91b83bb672e61ad42aec1dd28f5c06a281e2c
-Downloading: registry.redhat.io/openshift-logging/cluster-logging-operator-bundle@sha256:a78fd59207ef6cc8ddaaa3f3ae7140b7678e96e0677517623d1537afc05e84dd
-Downloading: registry.redhat.io/rhacm2/endpoint-monitoring-rhel8-operator@sha256:4f7e4f762cba270cd9aa731371a66b16f1c19792f14cd5046f138d1c0f80b36c
-Downloaded artifact [3/375]: sriov-fec-operator@sha256_5962e20d88f031d5b1b9c726120b14b39ef78b42d9f82322554de57129015412
+Downloading: registry.redhat.io/multicluster-engine/cluster-proxy-rhel8@sha256:e07eaed7ce86a9a72d0ef617941bcb2339c27e206ae477081616223f39bfa22d
+Downloaded artifact [1/376]: cluster-logging-operator-bundle@sha256_4e6ada19c48d471db0513a1b5acba91ebecca42ce5127778b96a72d62af85289
+Downloading: registry.connect.redhat.com/intel/sriov-fec-operator-bundle@sha256:bee33416cfe3b7dd9df571e5c448ef431bbf4802d182b30f8acae775a995f0d3
+Downloaded artifact [2/376]: acm-operator-bundle@sha256_12a06b081a8cdea335f7388112994ef912e18a54110da80fb56c728164666609
+Downloading: registry.redhat.io/multicluster-engine/cluster-api-rhel8@sha256:b5c042364770d729a57412e9db8f1049efc8b1a63430ae3c296fbdd0519672fd
+Downloaded artifact [3/376]: sriov-fec-operator-bundle@sha256_bee33416cfe3b7dd9df571e5c448ef431bbf4802d182b30f8acae775a995f0d3
 ...
-Downloaded artifact [374/375]: fluentd-rhel8@sha256_842077788b4434800127d63b4cd5d8cfaa1cfd3ca1dfd8439de30c6e8ebda884
-Downloaded artifact [375/375]: ocp-v4.0-art-dev@sha256_e68d705c63061c735fb00f0d2fec361d2d6dfa854a8cc05a92753c08fbaf4684
-375 images of 375 downloaded, with 83 workers, in: 9m57.816237255s
+Downloaded artifact [375/376]: ocp-v4.0-art-dev@sha256_0518bb71854ae899c5601f44ae9525a8e7a502cd8114081661e9216c1651a130
+Downloaded artifact [376/376]: hive-rhel8@sha256_609cddbaacc9f50906119104da8f5323c0630cb895bd8829ffd719e76c50ef50
+
+Summary:
+
+Release:                            4.11.5
+Hub Version:                        2.5.4
+Include DU Profile:                 Yes
+Workers:                            83
+
+Total Images:                       376
+Downloaded:                         376
+Skipped (Previously Downloaded):    0
+Download Failures:                  0
+Time for Download:                  9m43s
 ```
 
->:exclamation: Notice that the number of containers precached highly increases because of the operators included in the DU profile. In the previous example we moved from 176 container images to 379.
+>:exclamation: Notice that the number of containers precached highly increases because of the operators included in the DU profile. In the previous example we moved from 176 container images to 376.
 
 
 ### Custom precaching for disconnected environments

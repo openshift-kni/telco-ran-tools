@@ -517,10 +517,33 @@ func download(folder, release, url string,
 	endTime := time.Now()
 	diff := endTime.Sub(startTime)
 
-	fmt.Fprintf(os.Stdout, "%d images of %d downloaded, with %d workers, in: %s\n", (totalJobs - downloadFailures), totalImages, maxParallel, diff.String())
+	summarize(release, hubVersion, duProfile, workers, totalImages, previous, (totalJobs - downloadFailures), downloadFailures, diff)
 
 	if downloadFailures > 0 {
-		fmt.Fprintf(os.Stderr, "Failed to download %d images\n", downloadFailures)
 		os.Exit(1)
 	}
+}
+
+func yesOrNo(b bool) string {
+	if b {
+		return "Yes"
+	} else {
+		return "No"
+	}
+}
+
+func summarize(release, hubVersion string, duProfile bool, workers int,
+	totalImages, skipped, downloaded, failures int, downloadTime time.Duration) {
+	fmt.Printf("\nSummary:\n\n")
+
+	fmt.Printf("%-35s %s\n", "Release:", release)
+	fmt.Printf("%-35s %s\n", "Hub Version:", hubVersion)
+	fmt.Printf("%-35s %s\n", "Include DU Profile:", yesOrNo(duProfile))
+	fmt.Printf("%-35s %d\n\n", "Workers:", workers)
+
+	fmt.Printf("%-35s %d\n", "Total Images:", totalImages)
+	fmt.Printf("%-35s %d\n", "Downloaded:", downloaded)
+	fmt.Printf("%-35s %d\n", "Skipped (Previously Downloaded):", skipped)
+	fmt.Printf("%-35s %d\n", "Download Failures:", failures)
+	fmt.Printf("%-35s %s\n", "Time for Download:", downloadTime.Truncate(time.Second).String())
 }
