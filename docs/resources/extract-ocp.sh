@@ -3,18 +3,23 @@
 FOLDER="${FOLDER:-$(pwd)}"
 OCP_RELEASE_LIST="${OCP_RELEASE_LIST:-ocp-images.txt}"
 BINARY_FOLDER=/var/mnt
+CPUS=$(nproc --all)
+MAX_CPU_MULT=0.8
+MAX_BG=$((jq -n "$CPUS*$MAX_CPU_MULT") | cut -d . -f1)
 
 pushd $FOLDER
 
 load_images() {
 
   declare -A pids # Hash that include the images pulled along with their pids to be monitored by wait command
-  local max_bg=10 # Max number of simultaneous skopeo copies to container storage
+
+  local max_bg=$MAX_BG # Max number of simultaneous skopeo copies to container storage
   local total_copies=$(sort -u $BINARY_FOLDER/$OCP_RELEASE_LIST | wc -l)  # Required to keep track of the pull task vs total
   local current_copy=1
 
   #remove duplicates
   sort -u -o $OCP_RELEASE_LIST $OCP_RELEASE_LIST
+  echo "[INFO] Ready to extract ${total_copies} images using $MAX_BG simultaneous processes"
 
   while read -r line;
   do
@@ -54,7 +59,7 @@ load_images() {
         fi
       done
       # Once the batch is processed, reset the new batch size and clear the processes hash for the next one
-      max_bg=10
+      max_bg=$MAX_BG
       pids=()
     fi
   done < ${BINARY_FOLDER}/${OCP_RELEASE_LIST}
@@ -90,7 +95,7 @@ if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
   load_images
   retry_images # Return 1 if max.retries reached
   if [[ $? -ne 0 ]]; then
-    echo "[FAIL] ${#failed_copies[@]} images were not precached successfully"
+    echo "[FAIL] ${#failed_copies[@]} images were not precached successfully" #number of failing images
     exit 1
   else
     echo "[SUCCESS] All images were precached"
