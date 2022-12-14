@@ -14,11 +14,17 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"text/template"
+	"time"
 
 	"github.com/spf13/cobra"
 )
+
+var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8) // Default to 80% of available cores
+const MaxRequeues = 3
 
 // Using SHAs for ACM 2.5.1 as defaults
 const ACMDefaultAIAgentImage = "registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
@@ -39,7 +45,8 @@ var downloadCmd = &cobra.Command{
 		duProfile, _ := cmd.Flags().GetBool("du-profile")
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
 		hubVersion, _ := cmd.Flags().GetString("hub-version")
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, args)
+		maxParallel, _ := cmd.Flags().GetInt("parallel")
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, args, maxParallel)
 	},
 	Version: Version,
 }
@@ -58,6 +65,7 @@ func init() {
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
 	downloadCmd.Flags().StringP("hub-version", "", "", "RHACM operator version in a.x.z format")
 	downloadCmd.MarkFlagRequired("hub-version")
+	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
 	rootCmd.AddCommand(downloadCmd)
 }
 
@@ -74,6 +82,18 @@ type ImageMapping struct {
 	ImageMapping string
 	Artifact     string
 }
+
+type DownloadJob struct {
+	Image   ImageMapping
+	Attempt int
+}
+
+type DownloadResult struct {
+	Image   ImageMapping
+	Success bool
+}
+
+var downloadFailures int = 0
 
 func generateOcMirrorCommand(tmpDir, folder string) *exec.Cmd {
 	return exec.Command("oc-mirror", "-c", path.Join(folder, "imageset.yaml"), "file://"+tmpDir+"/mirror", "--ignore-history", "--dry-run")
@@ -94,6 +114,95 @@ func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
 
 func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
+}
+
+// imageDownload handles the image download job
+func imageDownload(workerId int, image ImageMapping, folder string) error {
+	artifactTar := image.Artifact + ".tgz"
+
+	fmt.Fprintf(os.Stdout, "Downloading: %s\n", image.Image)
+
+	scratchdir := path.Join(folder, fmt.Sprintf("scratch-%03d", workerId))
+	_, err := os.Stat(scratchdir)
+	if err == nil {
+		err = os.RemoveAll(scratchdir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", path.Join(folder, image.Artifact), err)
+			os.Exit(1)
+		}
+	}
+
+	err = os.Mkdir(scratchdir, 0755)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: Failed to mkdir %s: %s\n", scratchdir, err)
+		return err
+	}
+
+	cmd := generateSkopeoCopyCommand(scratchdir, image.Artifact, image.Image)
+	stdout, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		return err
+	}
+
+	cmd = generateTarArtifactCommand(scratchdir, image.Artifact)
+	stdout, err = cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		return err
+	}
+
+	err = os.Rename(path.Join(scratchdir, artifactTar), path.Join(folder, artifactTar))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to move file %s: %e\n", path.Join(scratchdir, artifactTar), err)
+		return err
+	}
+
+	err = os.RemoveAll(scratchdir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", scratchdir, err)
+		// Image has been downloaded, so we won't return an error here
+	}
+
+	return nil
+}
+
+// imageDownloader: Worker for processing image download jobs
+func imageDownloader(wg *sync.WaitGroup, workerId int, jobs chan DownloadJob, results chan<- DownloadResult, folder string) {
+	defer wg.Done()
+
+	for job := range jobs {
+		err := imageDownload(workerId, job.Image, folder)
+		if err != nil && job.Attempt < MaxRequeues {
+			fmt.Fprintf(os.Stderr, "Requeueing to try again: %s\n", job.Image.Image)
+			job.Attempt++
+			jobs <- job
+		} else {
+			results <- DownloadResult{job.Image, (err == nil)}
+		}
+
+		if len(jobs) == 0 {
+			// Job queue is empty, so we can exit the worker
+			return
+		}
+	}
+}
+
+// imageDownloaderResults processes the download job results channel
+func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, totalImages int, folder string, aiImages []string, aiImagesFile *os.File, ocpImagesFile *os.File) {
+	defer wg.Done()
+
+	counter := 0
+	for result := range results {
+		counter++
+		if result.Success {
+			fmt.Fprintf(os.Stdout, "Downloaded artifact [%d/%d]: %s\n", counter, totalImages, result.Image.Artifact)
+			saveToImagesFile(result.Image.Image, result.Image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
+		} else {
+			fmt.Fprintf(os.Stdout, "Failed download artifact [%d/%d]: %s\n", counter, totalImages, result.Image.Artifact)
+			downloadFailures++
+		}
+	}
 }
 
 func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, hubVersion string) {
@@ -205,10 +314,15 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
-	hubVersion string, extraArgs []string) {
+	hubVersion string, extraArgs []string,
+	maxParallel int) {
 	if len(extraArgs) > 0 {
 		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
 		os.Exit(1)
+	}
+
+	if maxParallel < 1 {
+		maxParallel = 1
 	}
 
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
@@ -333,58 +447,103 @@ func download(folder, release, url string,
 			}
 		}
 	}
-	for i, image := range images {
-		fmt.Fprintf(os.Stdout, "Processing artifact [%d/%d]: %s\n", i+1, len(images), image.Artifact)
+
+	totalImages := len(images)
+	totalJobs := 0
+	previous := 0
+
+	// Setup channels for jobs and results
+	jobs := make(chan DownloadJob, totalImages)
+	results := make(chan DownloadResult, totalImages)
+
+	// Process complete image list to determine images that haven't already been downloaded
+	for _, image := range images {
 		artifactTar := image.Artifact + ".tgz"
 		_, err = os.Stat(path.Join(folder, artifactTar))
 		if err == nil {
 			// File exists, thus it's been already downloaded and tarballed, moving on...
-			fmt.Fprintf(os.Stdout, "File %s.tgz already exists, skipping...\n", image.Artifact)
+			fmt.Fprintf(os.Stdout, "Exists: %s\n", artifactTar)
+			saveToImagesFile(image.Image, image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
+			previous++
 		} else {
-			scratchdir := path.Join(folder, "scratch")
-			_, err = os.Stat(scratchdir)
-			if err == nil {
-				err = os.RemoveAll(scratchdir)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", path.Join(folder, image.Artifact), err)
-					os.Exit(1)
-				}
-			}
-
-			err = os.Mkdir(scratchdir, 0755)
-
-			cmd := generateSkopeoCopyCommand(scratchdir, image.Artifact, image.Image)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: Failed to mkdir %s: %s", scratchdir, err)
-				os.Exit(1)
-			}
-
-			stdout, err := cmd.CombinedOutput()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-				os.Exit(1)
-			}
-
-			cmd = generateTarArtifactCommand(scratchdir, image.Artifact)
-			stdout, err = cmd.CombinedOutput()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-				os.Exit(1)
-			}
-
-			err = os.Rename(path.Join(scratchdir, artifactTar), path.Join(folder, artifactTar))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to move file %s: %e\n", path.Join(scratchdir, artifactTar), err)
-				os.Exit(1)
-			}
-
-			err = os.RemoveAll(scratchdir)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", scratchdir, err)
-				os.Exit(1)
-			}
+			// Add download jobs to channel to be processed
+			jobs <- DownloadJob{image, 0}
+			totalJobs++
 		}
-
-		saveToImagesFile(image.Image, image.ImageMapping, aiImages, aiImagesFile, ocpImagesFile)
 	}
+
+	fmt.Println()
+
+	if totalJobs == 0 {
+		fmt.Fprintf(os.Stdout, "All %d images previously downloaded.\n", totalImages)
+		os.Exit(0)
+	}
+
+	if previous > 0 {
+		fmt.Fprintf(os.Stdout, "%d images previously downloaded.\n", previous)
+	}
+
+	workers := maxParallel
+	if totalJobs < workers {
+		workers = totalJobs
+	}
+
+	fmt.Fprintf(os.Stdout, "Queueing %d of %d images for download, with %d workers.\n\n", totalJobs, totalImages, workers)
+	startTime := time.Now()
+
+	wg := sync.WaitGroup{}
+
+	// Create imageDownloader workers
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go imageDownloader(&wg, i, jobs, results, folder)
+	}
+
+	// Create results processor
+	wgResp := sync.WaitGroup{}
+	wgResp.Add(1)
+	go imageDownloaderResults(&wgResp, results, totalJobs, folder, aiImages, aiImagesFile, ocpImagesFile)
+
+	// Wait for imageDownloader workers to finish
+	wg.Wait()
+
+	// Close the jobs channel to complete the task list
+	close(jobs)
+
+	// Close results channel
+	close(results)
+	wgResp.Wait()
+
+	endTime := time.Now()
+	diff := endTime.Sub(startTime)
+
+	summarize(release, hubVersion, duProfile, workers, totalImages, previous, (totalJobs - downloadFailures), downloadFailures, diff)
+
+	if downloadFailures > 0 {
+		os.Exit(1)
+	}
+}
+
+func yesOrNo(b bool) string {
+	if b {
+		return "Yes"
+	} else {
+		return "No"
+	}
+}
+
+func summarize(release, hubVersion string, duProfile bool, workers int,
+	totalImages, skipped, downloaded, failures int, downloadTime time.Duration) {
+	fmt.Printf("\nSummary:\n\n")
+
+	fmt.Printf("%-35s %s\n", "Release:", release)
+	fmt.Printf("%-35s %s\n", "Hub Version:", hubVersion)
+	fmt.Printf("%-35s %s\n", "Include DU Profile:", yesOrNo(duProfile))
+	fmt.Printf("%-35s %d\n\n", "Workers:", workers)
+
+	fmt.Printf("%-35s %d\n", "Total Images:", totalImages)
+	fmt.Printf("%-35s %d\n", "Downloaded:", downloaded)
+	fmt.Printf("%-35s %d\n", "Skipped (Previously Downloaded):", skipped)
+	fmt.Printf("%-35s %d\n", "Download Failures:", failures)
+	fmt.Printf("%-35s %s\n", "Time for Download:", downloadTime.Truncate(time.Second).String())
 }
