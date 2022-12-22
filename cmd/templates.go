@@ -30,22 +30,9 @@ mirror:
 #        - name: cluster-logging
 #          channels:
 #            - name: 'stable'
-{{- if .DuProfile }}
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
       packages:
-        - name: advanced-cluster-management
-          channels:
-             - name: 'release-2.6'
-  {{- if eq (slice .HubVersion 0 4) "2.6."}}
-               minVersion: {{ .HubVersion }}
-               maxVersion: {{ .HubVersion }}
-  {{- end }}
-  {{- if eq (slice .HubVersion 0 4) "2.5."}}
-             - name: 'release-2.5'
-               minVersion: {{ .HubVersion }}
-               maxVersion: {{ .HubVersion }}
-  {{- end }}
         - name: multicluster-engine
           channels:
              - name: 'stable-2.1'
@@ -58,6 +45,19 @@ mirror:
                minVersion: 2.0.{{ slice .HubVersion 4 5 }}
                maxVersion: 2.0.{{ slice .HubVersion 4 5 }}
   {{- end}}        
+  {{- if .DuProfile }}
+        - name: advanced-cluster-management
+          channels:
+             - name: 'release-2.6'
+  {{- if eq (slice .HubVersion 0 4) "2.6."}}
+               minVersion: {{ .HubVersion }}
+               maxVersion: {{ .HubVersion }}
+  {{- end }}
+  {{- if eq (slice .HubVersion 0 4) "2.5."}}
+             - name: 'release-2.5'
+               minVersion: {{ .HubVersion }}
+               maxVersion: {{ .HubVersion }}
+  {{- end }}
         - name: local-storage-operator
           channels:
             - name: 'stable'

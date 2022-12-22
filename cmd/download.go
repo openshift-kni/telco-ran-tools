@@ -26,10 +26,6 @@ import (
 var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8) // Default to 80% of available cores
 const MaxRequeues = 3
 
-// Using SHAs for ACM 2.5.1 as defaults
-const ACMDefaultAIAgentImage = "registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:482618e19dc48990bb53f46e441ce21f574c04a6e0b9ee8fe1103284e15db994"
-const ACMDefaultAIInstallerImage = "registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:e0dbc04261a5f9d946d05ea40117b6c3ab33c000ae256e062f7c3e38cdf116cc"
-
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
@@ -278,7 +274,7 @@ func contains(stringlist []string, s string) bool {
 
 func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFile *os.File, ocpImagesFile *os.File) {
 	splittedImageMapping := strings.Split(imageMapping, ":")
-	if contains(aiImages, image) {
+	if contains(aiImages, image) || strings.HasPrefix(splittedImageMapping[0], "multicluster-engine/assisted-installer") {
 		aiImagesFile.WriteString(image + "\n")
 		if strings.Contains(splittedImageMapping[0], "assisted-installer-reporter") {
 			ocpImagesFile.WriteString(image + "\n")
@@ -347,11 +343,6 @@ func download(folder, release, url string,
 				os.Exit(1)
 			}
 		}
-	}
-
-	if len(aiImages) == 0 {
-		// No AI images specified, so use defaults
-		aiImages = append(aiImages, ACMDefaultAIAgentImage, ACMDefaultAIInstallerImage)
 	}
 
 	imagesetFile := path.Join(folder, "imageset.yaml")
