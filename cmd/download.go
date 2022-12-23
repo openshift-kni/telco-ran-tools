@@ -30,7 +30,8 @@ const MaxRequeues = 3
 var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "Downloads and pre-caches artifacts",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Get cmdline parameters
 		folder, _ := cmd.Flags().GetString("folder")
 		release, _ := cmd.Flags().GetString("release")
 		url, _ := cmd.Flags().GetString("rootfs-url")
@@ -42,7 +43,29 @@ var downloadCmd = &cobra.Command{
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
 		hubVersion, _ := cmd.Flags().GetString("hub-version")
 		maxParallel, _ := cmd.Flags().GetInt("parallel")
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, args, maxParallel)
+
+		// Validate cmdline parameters
+		if len(args) > 0 {
+			return fmt.Errorf("Unexpected arg(s) on command-line: %s\n", strings.Join(args, " "))
+		}
+
+		versionRE := regexp.MustCompile("^[0-9]+\\.[0-9]+\\.[0-9]+$")
+
+		if !versionRE.MatchString(release) {
+			return fmt.Errorf("Invalid release specified. X.Y.Z format expected: %s", release)
+		}
+
+		if !versionRE.MatchString(hubVersion) {
+			return fmt.Errorf("Invalid hub-version specified. X.Y.Z format expected: %s", hubVersion)
+		}
+
+		if maxParallel < 1 {
+			maxParallel = 1
+		}
+
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, maxParallel)
+
+		return nil
 	},
 	Version: Version,
 }
@@ -50,7 +73,7 @@ var downloadCmd = &cobra.Command{
 func init() {
 	downloadCmd.Flags().StringP("folder", "f", "", "Folder to download artifacts")
 	downloadCmd.MarkFlagRequired("folder")
-	downloadCmd.Flags().StringP("release", "r", "", "OpenShift release version")
+	downloadCmd.Flags().StringP("release", "r", "", "OpenShift release version, in X.Y.Z format")
 	downloadCmd.MarkFlagRequired("folder")
 	downloadCmd.Flags().StringP("rootfs-url", "u", "", "rootFS URL")
 	downloadCmd.Flags().StringSliceP("ai-img", "i", []string{}, "Assisted Installer Image(s)")
@@ -59,7 +82,7 @@ func init() {
 	downloadCmd.Flags().Bool("generate-imageset", false, "Generate imageset.yaml only")
 	downloadCmd.Flags().Bool("du-profile", false, "Pre-cache telco 5G DU operators")
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
-	downloadCmd.Flags().StringP("hub-version", "", "", "RHACM operator version in a.x.z format")
+	downloadCmd.Flags().StringP("hub-version", "", "", "RHACM operator version, in X.Y.Z format")
 	downloadCmd.MarkFlagRequired("hub-version")
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
 	rootCmd.AddCommand(downloadCmd)
@@ -219,16 +242,6 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	channel := r[0] + "." + r[1]
 	version := release
 
-	// Validate hub version is something like x.y.z
-
-	match, err := regexp.MatchString("^[0-9]\\.[0-9]+\\.[0-9]+$", hubVersion)
-	if match == false {
-		fmt.Fprintf(os.Stderr, "error: incorrect Hub version. ex: 2.5.4. %v\n", err)
-		os.Exit(1)
-	}
-
-	// If we support ACM 2.6, then there should be logic to add ACM as a param to the CLI and then a map to hace ACM to AI SHAs
-
 	images := append(aiImages, additionalImages...)
 	d := ImageSet{channel, version, images, duProfile, hubVersion}
 	err = t.Execute(f, d)
@@ -310,17 +323,8 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
-	hubVersion string, extraArgs []string,
+	hubVersion string,
 	maxParallel int) {
-	if len(extraArgs) > 0 {
-		fmt.Fprintf(os.Stderr, "Unexpected arg(s) on command-line: %s\n", strings.Join(extraArgs, " "))
-		os.Exit(1)
-	}
-
-	if maxParallel < 1 {
-		maxParallel = 1
-	}
-
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)

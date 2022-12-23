@@ -12,7 +12,9 @@ mirror:
       maxVersion: {{ .Version }}
   additionalImages:
 {{- range $img := .AdditionalImages }}
+  {{- if ne $img "" }}
     - name: {{ $img }}
+  {{- end }}
 {{- end }}
 #
 # Example operators specification:
