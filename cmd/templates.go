@@ -37,29 +37,23 @@ mirror:
       packages:
         - name: multicluster-engine
           channels:
-             - name: 'stable-2.1'
-  {{- if eq (slice .HubVersion 0 4) "2.6."}}
-               minVersion: 2.1.{{ slice .HubVersion 4 5 }}
-               maxVersion: 2.1.{{ slice .HubVersion 4 5 }}
-  {{- end }}
-  {{- if eq (slice .HubVersion 0 4) "2.5."}}
-             - name: 'stable-2.0'
-               minVersion: 2.0.{{ slice .HubVersion 4 5 }}
-               maxVersion: 2.0.{{ slice .HubVersion 4 5 }}
-  {{- end}}        
-  {{- if .DuProfile }}
+{{- /* Because there is no versionless "stable" channel, we need to include the latest versioned channel */ -}}
+{{- if ne .MceChannel "2.1" }}
+            - name: 'stable-2.1'
+{{- end }}
+            - name: 'stable-{{.MceChannel}}'
+              minVersion: {{ .MceVersion }}
+              maxVersion: {{ .MceVersion }}
+{{- if .DuProfile }}
         - name: advanced-cluster-management
           channels:
-             - name: 'release-2.6'
-  {{- if eq (slice .HubVersion 0 4) "2.6."}}
-               minVersion: {{ .HubVersion }}
-               maxVersion: {{ .HubVersion }}
+  {{- /* Because there is no versionless "release" channel, we need to include the latest versioned channel */ -}}
+  {{- if ne .AcmChannel "2.6" }}
+            - name: 'release-2.6'
   {{- end }}
-  {{- if eq (slice .HubVersion 0 4) "2.5."}}
-             - name: 'release-2.5'
-               minVersion: {{ .HubVersion }}
-               maxVersion: {{ .HubVersion }}
-  {{- end }}
+            - name: 'release-{{ .AcmChannel }}'
+              minVersion: {{ .AcmVersion }}
+              maxVersion: {{ .AcmVersion }}
         - name: local-storage-operator
           channels:
             - name: 'stable'
@@ -74,8 +68,8 @@ mirror:
             - name: 'stable'
   {{- if eq .Channel "4.12" }}
         - name: odf-lvm-operator
-        channels:
-          - name: 'stable-4.12'
+          channels:
+            - name: 'stable-4.12'
         - name: amq7-interconnect-operator
           channels:
             - name: '1.10.x'

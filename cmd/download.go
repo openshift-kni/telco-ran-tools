@@ -26,6 +26,38 @@ import (
 var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8) // Default to 80% of available cores
 const MaxRequeues = 3
 
+// splitVersion will split a version string into an X.Y string and a Z string
+func splitVersion(version string) (xy, z string) {
+	if version != "" {
+		r := strings.Split(version, ".")
+		xy = r[0] + "." + r[1]
+		z = r[2]
+	}
+	return
+}
+
+// deprecatedHubVersionToAcmMce translates the hubVersion to acmVersion and mceVersions to provide
+// minimal backwards-compatible support for the deprecated --hub-version option, which uses an invalid
+// assumption that the Z value of the ACM and MCE Z-stream versions are the same. Because this assumption
+// is invalid, the --hub-version is replaced with separate --acm-version and --mce-version options.
+// This function uses the previous (invalid) translation in order to support users that have not updated
+// to using the new options.
+func deprecatedHubVersionToAcmMce(hubVersion string) (acmVersion, mceVersion string) {
+	acmVersion = hubVersion
+
+	xy, z := splitVersion(hubVersion)
+
+	if xy == "2.6" {
+		mceVersion = "2.1." + z
+	} else if xy == "2.5" {
+		mceVersion = "2.0." + z
+	} else {
+		mceVersion = hubVersion
+	}
+
+	return
+}
+
 // downloadCmd represents the download command
 var downloadCmd = &cobra.Command{
 	Use:   "download",
@@ -43,6 +75,8 @@ var downloadCmd = &cobra.Command{
 		skipImageSet, _ := cmd.Flags().GetBool("skip-imageset")
 		hubVersion, _ := cmd.Flags().GetString("hub-version")
 		maxParallel, _ := cmd.Flags().GetInt("parallel")
+		acmVersion, _ := cmd.Flags().GetString("acm-version")
+		mceVersion, _ := cmd.Flags().GetString("mce-version")
 
 		// Validate cmdline parameters
 		if len(args) > 0 {
@@ -55,15 +89,42 @@ var downloadCmd = &cobra.Command{
 			return fmt.Errorf("Invalid release specified. X.Y.Z format expected: %s", release)
 		}
 
-		if !versionRE.MatchString(hubVersion) {
-			return fmt.Errorf("Invalid hub-version specified. X.Y.Z format expected: %s", hubVersion)
+		// Either hubVersion or mceVersion must be set
+		if (hubVersion != "" && acmVersion != "") || (hubVersion != "" && mceVersion != "") {
+			return fmt.Errorf("--hub-version is deprecated, and conflicts with --mce-version and --acm-version options")
+		}
+
+		if hubVersion != "" {
+			if !versionRE.MatchString(hubVersion) {
+				return fmt.Errorf("Invalid hub-version specified. X.Y.Z format expected: %s", hubVersion)
+			}
+
+			acmVersion, mceVersion = deprecatedHubVersionToAcmMce(hubVersion)
+		}
+
+		if mceVersion == "" {
+			return fmt.Errorf("MCE version must be specified with --mce-version")
+		}
+
+		if !versionRE.MatchString(mceVersion) {
+			return fmt.Errorf("Invalid mce-version specified. X.Y.Z format expected: %s", hubVersion)
+		}
+
+		if duProfile && acmVersion == "" {
+			return fmt.Errorf("ACM version must be specified with --acm-version when --du-profile is selected")
+		}
+
+		if acmVersion != "" {
+			if !versionRE.MatchString(acmVersion) {
+				return fmt.Errorf("Invalid acm-version specified. X.Y.Z format expected: %s", hubVersion)
+			}
 		}
 
 		if maxParallel < 1 {
 			maxParallel = 1
 		}
 
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, hubVersion, maxParallel)
+		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, acmVersion, mceVersion, maxParallel)
 
 		return nil
 	},
@@ -82,8 +143,9 @@ func init() {
 	downloadCmd.Flags().Bool("generate-imageset", false, "Generate imageset.yaml only")
 	downloadCmd.Flags().Bool("du-profile", false, "Pre-cache telco 5G DU operators")
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
-	downloadCmd.Flags().StringP("hub-version", "", "", "RHACM operator version, in X.Y.Z format")
-	downloadCmd.MarkFlagRequired("hub-version")
+	downloadCmd.Flags().StringP("hub-version", "", "", "(deprecated) RHACM operator version, in X.Y.Z format")
+	downloadCmd.Flags().StringP("acm-version", "", "", "Advanced Cluster Management operator version, in X.Y.Z format")
+	downloadCmd.Flags().StringP("mce-version", "", "", "MultiCluster Engine operator version, in X.Y.Z format")
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
 	rootCmd.AddCommand(downloadCmd)
 }
@@ -93,7 +155,10 @@ type ImageSet struct {
 	Version          string
 	AdditionalImages []string
 	DuProfile        bool
-	HubVersion       string
+	AcmChannel       string
+	AcmVersion       string
+	MceChannel       string
+	MceVersion       string
 }
 
 type ImageMapping struct {
@@ -224,7 +289,7 @@ func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, t
 	}
 }
 
-func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, hubVersion string) {
+func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) {
 	t, err := template.New("ImageSet").Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
@@ -238,12 +303,13 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	}
 
 	// TODO: Validate the release version is valid with something like oc-mirror list releases --channel=stable-<channel
-	r := strings.Split(release, ".")
-	channel := r[0] + "." + r[1]
-	version := release
+
+	channel, _ := splitVersion(release)
+	acmChannel, _ := splitVersion(acmVersion)
+	mceChannel, _ := splitVersion(mceVersion)
 
 	images := append(aiImages, additionalImages...)
-	d := ImageSet{channel, version, images, duProfile, hubVersion}
+	d := ImageSet{channel, release, images, duProfile, acmChannel, acmVersion, mceChannel, mceVersion}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
@@ -323,7 +389,7 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
-	hubVersion string,
+	acmVersion, mceVersion string,
 	maxParallel int) {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
@@ -352,7 +418,7 @@ func download(folder, release, url string,
 	imagesetFile := path.Join(folder, "imageset.yaml")
 
 	if !skipImageSet {
-		templatizeImageset(release, folder, aiImages, additionalImages, duProfile, hubVersion)
+		templatizeImageset(release, folder, aiImages, additionalImages, duProfile, acmVersion, mceVersion)
 
 		fmt.Printf("Generated %s\n", imagesetFile)
 		if generateImageSet {
@@ -512,7 +578,7 @@ func download(folder, release, url string,
 	endTime := time.Now()
 	diff := endTime.Sub(startTime)
 
-	summarize(release, hubVersion, duProfile, workers, totalImages, previous, (totalJobs - downloadFailures), downloadFailures, diff)
+	summarize(release, acmVersion, mceVersion, duProfile, workers, totalImages, previous, (totalJobs - downloadFailures), downloadFailures, diff)
 
 	if downloadFailures > 0 {
 		os.Exit(1)
@@ -527,12 +593,15 @@ func yesOrNo(b bool) string {
 	}
 }
 
-func summarize(release, hubVersion string, duProfile bool, workers int,
+func summarize(release, acmVersion, mceVersion string, duProfile bool, workers int,
 	totalImages, skipped, downloaded, failures int, downloadTime time.Duration) {
 	fmt.Printf("\nSummary:\n\n")
 
 	fmt.Printf("%-35s %s\n", "Release:", release)
-	fmt.Printf("%-35s %s\n", "Hub Version:", hubVersion)
+	if acmVersion != "" {
+		fmt.Printf("%-35s %s\n", "ACM Version:", acmVersion)
+	}
+	fmt.Printf("%-35s %s\n", "MCE Version:", mceVersion)
 	fmt.Printf("%-35s %s\n", "Include DU Profile:", yesOrNo(duProfile))
 	fmt.Printf("%-35s %d\n\n", "Workers:", workers)
 
