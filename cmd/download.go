@@ -145,6 +145,7 @@ func init() {
 	downloadCmd.Flags().Bool("du-profile", false, "Pre-cache telco 5G DU operators")
 	downloadCmd.Flags().Bool("skip-imageset", false, "Skip imageset.yaml generation")
 	downloadCmd.Flags().StringP("hub-version", "", "", "(deprecated) RHACM operator version, in X.Y.Z format")
+	downloadCmd.Flags().MarkDeprecated("hub-version", "please use separate --acm-version and --mce-version options")
 	downloadCmd.Flags().StringP("acm-version", "", "", "Advanced Cluster Management operator version, in X.Y.Z format")
 	downloadCmd.Flags().StringP("mce-version", "", "", "MultiCluster Engine operator version, in X.Y.Z format")
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")

@@ -81,7 +81,6 @@ Flags:
   -f, --folder string        Folder to download artifacts
       --generate-imageset    Generate imageset.yaml only
   -h, --help                 help for download
-      --hub-version string   (deprecated) RHACM operator version, in X.Y.Z format
   -a, --img strings          Additional Image(s)
       --mce-version string   MultiCluster Engine operator version, in X.Y.Z format
   -p, --parallel int         Maximum parallel downloads (default 83)
