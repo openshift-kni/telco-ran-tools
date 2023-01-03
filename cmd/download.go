@@ -52,7 +52,8 @@ func deprecatedHubVersionToAcmMce(hubVersion string) (acmVersion, mceVersion str
 	} else if xy == "2.5" {
 		mceVersion = "2.0." + z
 	} else {
-		mceVersion = hubVersion
+		fmt.Fprintf(os.Stderr, "Error: Use of --hub-version is unsupported for %s. Please use --acm-version and --mce-version options\n", hubVersion)
+		os.Exit(1)
 	}
 
 	return
