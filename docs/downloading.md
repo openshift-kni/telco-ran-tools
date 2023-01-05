@@ -33,22 +33,7 @@ multicluster-engine                                openshift-gitops-operator.v1.
 multicluster-engine                                openshift-pipelines-operator-rh.v1.6.4       Red Hat OpenShift Pipelines                  1.6.4                 openshift-pipelines-operator-rh.v1.6.3            Succeeded
 ```
 
->:warning: RHACM has as a prereq the MCE, so installing RHACM will also install MCE. Said that, currently, a decision was made that a given version of ACM would only work with a corresponding version of MCE. Those pairings are or will be: ACM 2.5 with MCE 2.0, ACM 2.6 with MCE 2.1 and ACM 2.7 (will be) with MCE 2.2.
-
-### Obtaining the assisted-installer images
-
-The assisted installer container images are being used during the discovery stage of ZTP. In order to precache them, we need to know what versions are going to be used by our hub cluster. We can obtain that information by just querying the `assisted-service` configMap:
-
->:exclamation: Notice that the namespace might be different depending on the RHACM version installed on the hub cluster.
-
-```console
-$ oc get cm assisted-service -n open-cluster-management -oyaml | grep -E "AGENT_DOCKER_IMAGE|CONTROLLER_IMAGE|INSTALLER_IMAGE"
-  AGENT_DOCKER_IMAGE: registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306
-  CONTROLLER_IMAGE: registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd
-  INSTALLER_IMAGE: registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027
-```
-
-Then save this information because it is being to be used for downloading the artifacts.
+>:warning: RHACM has as a prereq the MCE, so installing RHACM will also install MCE.
 
 ### Preparing for the download
 
@@ -75,15 +60,16 @@ Usage:
   factory-precaching-cli download [flags]
 
 Flags:
+      --acm-version string   Advanced Cluster Management operator version, in X.Y.Z format
   -i, --ai-img strings       Assisted Installer Image(s)
       --du-profile           Pre-cache telco 5G DU operators
   -f, --folder string        Folder to download artifacts
       --generate-imageset    Generate imageset.yaml only
   -h, --help                 help for download
-      --hub-version string   RHACM operator version in a.x.z format
   -a, --img strings          Additional Image(s)
+      --mce-version string   MultiCluster Engine operator version, in X.Y.Z format
   -p, --parallel int         Maximum parallel downloads (default 83)
-  -r, --release string       OpenShift release version
+  -r, --release string       OpenShift release version, in X.Y.Z format
   -s, --rm-stale             Remove stale images
   -u, --rootfs-url string    rootFS URL
       --skip-imageset        Skip imageset.yaml generation
@@ -97,15 +83,13 @@ The factory-precaching-cli tool allows us to precache all the container images r
 * Precaching 4.11.5 OCP release
 * Copying all the dependent artifacts into /mnt
 * Mounting the pull secret that we just created into /root/.docker
-* Including the assisted installer images that we queried before into the --ai-img list
 * Including an extra image that we want to be copied and extracted during the installation stage (--img)
+
+Note that we could also specify explicit installer images to be precached, using the --ai-img option.
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools -- \
-   factory-precaching-cli download -r 4.11.5 --hub-version 2.5.4 -f /mnt \
-   --ai-img registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306 \
-   --ai-img registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd \
-   --ai-img registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027 \
+   factory-precaching-cli download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
    --img quay.io/alosadag/troubleshoot
 
 Generated /mnt/imageset.yaml
@@ -130,7 +114,8 @@ Downloaded artifact [176/176]: ocp-v4.0-art-dev@sha256_e68d705c63061c735fb00f0d2
 Summary:
 
 Release:                            4.11.5
-Hub Version:                        2.5.4
+ACM Version:                        2.5.4
+MCE Version:                        2.0.4
 Include DU Profile:                 No
 Workers:                            83
 
@@ -168,14 +153,14 @@ $ ls -l /mnt
 
 Aside from precaching the OCP release, we can also precache the day-2 operators used in telco 5G RAN. They are known as well as the telco 5G RAN distributed unit (DU) profile. They depend on the version of OCP that is going to be installed. However, you just need to add the `--du-profile` argument so that the factory-precaching-cli will do the hard work for you. 
 
-Notice that you need also to include the ACM hub version, using `--hub-version`, so that the tool figures out what containers images from RHACM and MCE operators need to pre-stage.
+Notice that you need also to include the ACM and MCE versions, using `--acm-version` and `--mce-version`, so that the tool figures out what containers images from RHACM and MCE operators need to pre-stage. Note the ACM version is only required if `--du-profile` is specified, while MCE version is always needed.
+
+Please also note the `--hub-version` option has been deprecated in favour of the separate `--acm-version` and
+`--mce-version` options, to support independent versioning.
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
-    download -r 4.11.5 --hub-version 2.5.4 -f /mnt \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306 \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027 \
+    download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
 
@@ -203,7 +188,8 @@ Downloaded artifact [376/376]: hive-rhel8@sha256_609cddbaacc9f50906119104da8f532
 Summary:
 
 Release:                            4.11.5
-Hub Version:                        2.5.4
+ACM Version:                        2.5.4
+MCE Version:                        2.0.4
 Include DU Profile:                 Yes
 Workers:                            83
 
@@ -224,10 +210,7 @@ By default the factory-precaching-cli tool enables the argument `--generate-imag
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
-    download -r 4.11.5 --hub-version 2.5.4 -f /mnt \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306 \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027 \
+    download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
     --generate-imageset
@@ -241,7 +224,7 @@ Based on the options included in the call, an imageset like the following one is
 * The OCP release version and channel match the one passed to the tool.
 * Additional images are included too,
 * The operator's section includes the 5G RAN DU operators for the 4.11.z release of OpenShift: LSO, PTP, SR-IOV, Logging and the Accelerator operator.
-* The RHACM and MCE operators match the `--hub-version` version passed to the tool.
+* The RHACM and MCE operators match the `--acm-version` and `--mce-version` versions passed to the tool.
 
 
 ```yaml
@@ -254,9 +237,6 @@ mirror:
       minVersion: 4.11.5
       maxVersion: 4.11.5
   additionalImages:
-    - name: registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306
-    - name: registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd
-    - name: registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027
     - name: quay.io/alosadag/troubleshoot
   operators:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.11
@@ -338,10 +318,7 @@ Then, we need to start the downloading of the images by explicitly (--skip-image
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
-    download -r 4.11.5 --hub-version 2.5.4 -f /mnt \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306 \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027 \
+    download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
     --skip-imageset
@@ -376,10 +353,7 @@ Next, we just need to mount the host `/etc/pki` folder into the factory-precachi
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker -v /etc/pki:/etc/pki --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- \
-    factory-precaching-cli download -r 4.11.5 --hub-version 2.5.4 -f /mnt \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-agent-rhel8@sha256:da1753f9fcb9e229d0a68de03fac90d15023e647a8db531ae489eb93845d5306 \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-reporter-rhel8@sha256:e8d6b78248352b1a8e05a22308185a468d4a139682d997a7f968b329abbc02cd \
-    --ai-img registry.redhat.io/multicluster-engine/assisted-installer-rhel8@sha256:33abd6e21cfdc36dd4337fa6f3c3442d33fc3f976471614dca5b8ef749e7a027 \
+    factory-precaching-cli download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
     --skip-imageset
