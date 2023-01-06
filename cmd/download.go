@@ -199,7 +199,7 @@ func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd
 
 func generateSkopeoInspectCommand(img string) *exec.Cmd {
 	// Use "skopeo inspect" to verify existence of specified image in registry
-	return exec.Command("skopeo", "inspect", "docker://"+img)
+	return exec.Command("skopeo", "inspect", "--no-tags", "docker://"+img)
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
