@@ -125,6 +125,13 @@ var downloadCmd = &cobra.Command{
 			maxParallel = 1
 		}
 
+		err := verifyImagesExist(append(aiImages, additionalImages...))
+		if err != nil {
+			// Explicitly printing error here rather than returning err to avoid "usage" message in output
+			fmt.Fprintln(os.Stderr, "Error: ", err)
+			os.Exit(1)
+		}
+
 		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, acmVersion, mceVersion, maxParallel)
 
 		return nil
@@ -190,6 +197,11 @@ func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd
 	return exec.Command("skopeo", "copy", "--all", "docker://"+artifactsFile, "dir://"+folder+"/"+artifact, "-q", "--retry-times", "10")
 }
 
+func generateSkopeoInspectCommand(img string) *exec.Cmd {
+	// Use "skopeo inspect" to verify existence of specified image in registry
+	return exec.Command("skopeo", "inspect", "--no-tags", "docker://"+img)
+}
+
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
 	return exec.Command("tar", "czvf", path.Join(folder, artifact+".tgz"), "-C", folder, artifact)
 }
@@ -200,6 +212,25 @@ func generateRemoveArtifactCommand(folder, artifact string) *exec.Cmd {
 
 func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
+}
+
+// verifyImagesExist uses "skopeo inspect" to verify the existence of specified images
+func verifyImagesExist(images []string) error {
+	var invalidImages []string
+
+	for _, img := range images {
+		cmd := generateSkopeoInspectCommand(img)
+		_, err := cmd.CombinedOutput()
+		if err != nil {
+			invalidImages = append(invalidImages, img)
+		}
+	}
+
+	if len(invalidImages) > 0 {
+		return fmt.Errorf("The following images were explicitly requested, but are not available in remote registry:\n\n%s\n", strings.Join(invalidImages, "\n"))
+	}
+
+	return nil
 }
 
 // imageDownload handles the image download job
