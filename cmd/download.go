@@ -15,6 +15,7 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -34,6 +35,24 @@ func splitVersion(version string) (xy, z string) {
 		z = r[2]
 	}
 	return
+}
+
+func versionAtLeast(version, atleast string) bool {
+	versionComponents := strings.Split(version, ".")
+	verX, _ := strconv.Atoi(versionComponents[0])
+	verY, _ := strconv.Atoi(versionComponents[1])
+
+	atleastComponents := strings.Split(atleast, ".")
+	atleastX, _ := strconv.Atoi(atleastComponents[0])
+	atleastY, _ := strconv.Atoi(atleastComponents[1])
+
+	if verX < atleastX {
+		return false
+	} else if verX > atleastX {
+		return true
+	} else {
+		return verY >= atleastY
+	}
 }
 
 // deprecatedHubVersionToAcmMce translates the hubVersion to acmVersion and mceVersions to provide
@@ -323,7 +342,7 @@ func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, t
 }
 
 func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) {
-	t, err := template.New("ImageSet").Parse(imageSetTemplate)
+	t, err := template.New("ImageSet").Funcs(template.FuncMap{"VersionAtLeast": versionAtLeast}).Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
 		os.Exit(1)

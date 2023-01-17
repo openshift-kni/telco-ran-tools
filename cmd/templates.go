@@ -66,10 +66,10 @@ mirror:
         - name: cluster-logging
           channels:
             - name: 'stable'
-  {{- if eq .Channel "4.12" }}
+  {{- if VersionAtLeast .Version "4.10" }}
         - name: odf-lvm-operator
           channels:
-            - name: 'stable-4.12'
+            - name: 'stable-{{ .Channel }}'
         - name: amq7-interconnect-operator
           channels:
             - name: '1.10.x'
