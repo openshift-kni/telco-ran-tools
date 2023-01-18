@@ -55,6 +55,24 @@ func versionAtLeast(version, atleast string) bool {
 	}
 }
 
+func versionAtMost(version, atmost string) bool {
+	versionComponents := strings.Split(version, ".")
+	verX, _ := strconv.Atoi(versionComponents[0])
+	verY, _ := strconv.Atoi(versionComponents[1])
+
+	atmostComponents := strings.Split(atmost, ".")
+	atmostX, _ := strconv.Atoi(atmostComponents[0])
+	atmostY, _ := strconv.Atoi(atmostComponents[1])
+
+	if verX > atmostX {
+		return false
+	} else if verX < atmostX {
+		return true
+	} else {
+		return verY <= atmostY
+	}
+}
+
 // deprecatedHubVersionToAcmMce translates the hubVersion to acmVersion and mceVersions to provide
 // minimal backwards-compatible support for the deprecated --hub-version option, which uses an invalid
 // assumption that the Z value of the ACM and MCE Z-stream versions are the same. Because this assumption
@@ -342,7 +360,10 @@ func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, t
 }
 
 func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) {
-	t, err := template.New("ImageSet").Funcs(template.FuncMap{"VersionAtLeast": versionAtLeast}).Parse(imageSetTemplate)
+	t, err := template.New("ImageSet").Funcs(template.FuncMap{
+		"VersionAtLeast": versionAtLeast,
+		"VersionAtMost":  versionAtMost,
+	}).Parse(imageSetTemplate)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
 		os.Exit(1)
