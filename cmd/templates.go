@@ -38,8 +38,8 @@ mirror:
         - name: multicluster-engine
           channels:
 {{- /* Because there is no versionless "stable" channel, we need to include the latest versioned channel */ -}}
-{{- if ne .MceChannel "2.1" }}
-            - name: 'stable-2.1'
+{{- if ne .MceChannel "2.2" }}
+            - name: 'stable-2.2'
 {{- end }}
             - name: 'stable-{{.MceChannel}}'
               minVersion: {{ .MceVersion }}
@@ -48,8 +48,8 @@ mirror:
         - name: advanced-cluster-management
           channels:
   {{- /* Because there is no versionless "release" channel, we need to include the latest versioned channel */ -}}
-  {{- if ne .AcmChannel "2.6" }}
-            - name: 'release-2.6'
+  {{- if ne .AcmChannel "2.7" }}
+            - name: 'release-2.7'
   {{- end }}
             - name: 'release-{{ .AcmChannel }}'
               minVersion: {{ .AcmVersion }}
