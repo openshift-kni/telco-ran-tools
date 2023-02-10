@@ -236,7 +236,10 @@ func generateSkopeoCopyCommand(folder, artifact, artifactsFile string) *exec.Cmd
 
 func generateSkopeoInspectCommand(img string) *exec.Cmd {
 	// Use "skopeo inspect" to verify existence of specified image in registry
-	return exec.Command("skopeo", "inspect", "--no-tags", "docker://"+img)
+	// On each retry in case of failure, skopeo doubles the delay between attempts, so only retry 5 times here
+	// 5 retries = 31 seconds of delays
+	// 10 retries = 17 minutes of delays
+	return exec.Command("skopeo", "inspect", "--no-tags", "docker://"+img, "--retry-times", "5")
 }
 
 func generateTarArtifactCommand(folder, artifact string) *exec.Cmd {
@@ -256,10 +259,12 @@ func verifyImagesExist(images []string) error {
 	var invalidImages []string
 
 	for _, img := range images {
+		fmt.Fprintf(os.Stdout, "Verifying image exists: %s\n", img)
 		cmd := generateSkopeoInspectCommand(img)
-		_, err := cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
 			invalidImages = append(invalidImages, img)
+			fmt.Fprintf(os.Stderr, "Failure to verify image: %s\nCommand output:\n%s\n\n", img, output)
 		}
 	}
 
