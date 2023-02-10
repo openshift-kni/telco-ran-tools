@@ -4,14 +4,14 @@ aliases:
   telco-ran-tools-reviewers:
     - browsell
     - donpenney
-    - rcarrillocruz
     - nishant-parekh
     - alosadagrande
     - serngawy
+    - tliu2021
   telco-ran-tools-approvers:
     - browsell
     - donpenney
-    - rcarrillocruz
     - nishant-parekh
     - alosadagrande
     - serngawy
+    - tliu2021
