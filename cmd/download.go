@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8) // Default to 80% of available cores
@@ -275,6 +276,81 @@ func verifyImagesExist(images []string) error {
 	return nil
 }
 
+// Validation of operators with specified versions:
+// The following types define a subset of the ImageSetConfiguration metadata needed to query the catalog with oc-mirror
+// in order to verify whether specified operator versions exist. The imageset.yaml file is parsed prior to querying
+// the full image list from oc-mirror, after the user has had the opportunity to modify the imageset.yaml with a private
+// registry or additional operators.
+
+type ImageSetData struct {
+	Mirror ImageSetMirror `yaml:"mirror"`
+}
+
+type ImageSetMirror struct {
+	Operators []ImageSetOperator `yaml:"operators,omitempty"`
+}
+
+type ImageSetChannel struct {
+	Name       string `yaml:"name"`
+	MinVersion string `yaml:"minVersion"`
+	MaxVersion string `yaml:"maxVersion"`
+}
+
+type ImageSetPackage struct {
+	Name     string            `yaml:"name"`
+	Channels []ImageSetChannel `yaml:"channels,omitempty"`
+}
+
+type ImageSetOperator struct {
+	Catalog  string            `yaml:"catalog"`
+	Packages []ImageSetPackage `yaml:"packages,omitempty"`
+}
+
+// checkOperatorVersion runs an oc-mirror query to get the list of versions for a given operator, grepping the results
+// to verify the expected version exists
+func checkOperatorVersion(catalog, name, channel, operatorVersion string) bool {
+	shellcmd := fmt.Sprintf("oc-mirror list operators --catalog %s --package %s --channel %s | grep -q '^%s$'",
+		catalog, name, channel, regexp.QuoteMeta(operatorVersion))
+	return (exec.Command("bash", "-c", shellcmd).Run() == nil)
+}
+
+// validateVersions parses the imageset.yaml, calling checkOperatorVersion for each operator with a specified maxVersion,
+// and assumes minVersion and maxVersion are set the same in order to specify the required version
+func validateVersions(folder string) error {
+	yfile, err := ioutil.ReadFile(path.Join(folder, "imageset.yaml"))
+	if err != nil {
+		return err
+	}
+
+	var data ImageSetData
+
+	err = yaml.Unmarshal(yfile, &data)
+	if err != nil {
+		return err
+	}
+
+	failures := 0
+	for _, op := range data.Mirror.Operators {
+		for _, pkg := range op.Packages {
+			for _, channel := range pkg.Channels {
+				if len(channel.MaxVersion) > 0 {
+					fmt.Fprintf(os.Stdout, "Checking %s version %s...\n", pkg.Name, channel.MaxVersion)
+					if !checkOperatorVersion(op.Catalog, pkg.Name, channel.Name, channel.MaxVersion) {
+						fmt.Fprintf(os.Stdout, "%s version %s not found in channel %s: Catalog %s\n",
+							pkg.Name, channel.MaxVersion, channel.Name, op.Catalog)
+						failures++
+					}
+				}
+			}
+		}
+	}
+
+	if failures > 0 {
+		return fmt.Errorf("Operator version validation failed")
+	}
+	return nil
+}
+
 // imageDownload handles the image download job
 func imageDownload(workerId int, image ImageMapping, folder string) error {
 	artifactTar := image.Artifact + ".tgz"
@@ -508,6 +584,13 @@ func download(folder, release, url string,
 			fmt.Fprintf(os.Stderr, "--skip-imageset specified, but %s not found", imagesetFile)
 			os.Exit(1)
 		}
+	}
+
+	fmt.Fprintf(os.Stdout, "Validating operator versions:\n")
+	err = validateVersions(folder)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: Operator version validation failed\n")
+		os.Exit(1)
 	}
 
 	fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
