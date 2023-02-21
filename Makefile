@@ -1,3 +1,4 @@
+SHELL ?= /bin/bash
 RUNTIME ?= podman
 REPOOWNER ?= openshift-kni
 IMAGENAME ?= telco-ran-tools
@@ -15,6 +16,24 @@ vet: ## Run go vet against code.
 	@echo "Running go vet"
 	go vet ./...
 
+.PHONY: shellcheck
+shellcheck: ## Run shellcheck
+	@echo "Running shellcheck"
+	hack/shellcheck.sh
+
+.PHONY: bashate
+bashate: ## Run bashate
+	@echo "Running bashate"
+	hack/bashate.sh
+
+.PHONY: update-resources
+update-resources: shellcheck bashate
+	@echo "Updating docs/resources/boot-beauty.ign"
+	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ocp.sh)\"#" docs/resources/boot-beauty.ign
+	@echo "Updating docs/resources/discovery-beauty.ign"
+	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ai.sh)\"#" docs/resources/discovery-beauty.ign
+	@hack/update-docs.sh
+
 .PHONY: check-git-tree
 check-git-tree: # If generated code is added in the future, add generation dependency here
 	hack/check-git-tree.sh
@@ -26,7 +45,7 @@ build: dist
 ci-job-e2e: test-e2e check-git-tree
 
 .PHONY: ci-job-unit
-ci-job-unit: fmt vet test-unit check-git-tree
+ci-job-unit: fmt vet test-unit shellcheck bashate update-resources check-git-tree
 
 outdir:
 	mkdir -p _output || :
