@@ -28,6 +28,18 @@ for f in "${BOOT_IGN}" "${DISCOVERY_IGN}" "${ZTP_PRECACHING}"; do
     fi
 done
 
+# Verify doc has expected data
+missing_tags=0
+for tag in '.json title=discovery-beauty.ign' '.json title=boot-beauty.ign' 'ignitionConfigOverride.*extract-ai' 'ignitionConfigOverride.*extract-ocp'; do
+    if ! grep -q "${tag}" "${ZTP_PRECACHING}"; then
+        echo "$(basename ${ZTP_PRECACHING}) missing required tag: ${tag}" >&2
+        missing_tags=$((missing_tags+1))
+    fi
+done
+if [ "${missing_tags}" -gt 0 ]; then
+    exit 1
+fi
+
 # Update ztp-precaching.md with extraction script changes, if needed
 echo "Updating ${ZTP_PRECACHING}"
 
