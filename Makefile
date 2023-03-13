@@ -38,6 +38,11 @@ update-resources: shellcheck bashate
 check-git-tree: # If generated code is added in the future, add generation dependency here
 	hack/check-git-tree.sh
 
+.PHONY: golangci-lint
+golangci-lint: ## Run golangci-lint against code.
+	@echo "Running golangci-lint"
+	hack/golangci-lint.sh
+
 .PHONY: build
 build: dist
 
@@ -45,7 +50,7 @@ build: dist
 ci-job-e2e: test-e2e check-git-tree
 
 .PHONY: ci-job-unit
-ci-job-unit: fmt vet test-unit shellcheck bashate update-resources check-git-tree
+ci-job-unit: fmt vet test-unit golangci-lint shellcheck bashate update-resources check-git-tree
 
 outdir:
 	mkdir -p _output || :

@@ -1,7 +1,19 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright 2023 Red Hat, Inc.
 
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
+
 package cmd
 
 import (
@@ -25,10 +37,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8) // Default to 80% of available cores
+// DefaultParallelization set to 80% of available cores.
+var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8)
+
+// MaxRequeues is the number of retries allowed for download reattempts.
 const MaxRequeues = 3
 
-// splitVersion will split a version string into an X.Y string and a Z string
+// splitVersion will split a version string into an X.Y string and a Z string.
 func splitVersion(version string) (xy, z string) {
 	if version != "" {
 		r := strings.Split(version, ".")
@@ -97,7 +112,7 @@ func deprecatedHubVersionToAcmMce(hubVersion string) (acmVersion, mceVersion str
 	return
 }
 
-// downloadCmd represents the download command
+// downloadCmd represents the download command.
 var downloadCmd = &cobra.Command{
 	Use:   "download",
 	Short: "Downloads and pre-caches artifacts",
@@ -119,10 +134,10 @@ var downloadCmd = &cobra.Command{
 
 		// Validate cmdline parameters
 		if len(args) > 0 {
-			return fmt.Errorf("Unexpected arg(s) on command-line: %s\n", strings.Join(args, " "))
+			return fmt.Errorf("Unexpected arg(s) on command-line: %s", strings.Join(args, " "))
 		}
 
-		versionRE := regexp.MustCompile("^[0-9]+\\.[0-9]+\\.[0-9]+$")
+		versionRE := regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
 		if !versionRE.MatchString(release) {
 			return fmt.Errorf("Invalid release specified. X.Y.Z format expected: %s", release)
@@ -170,13 +185,19 @@ var downloadCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, acmVersion, mceVersion, maxParallel)
+		err = download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, acmVersion, mceVersion, maxParallel)
+		if err != nil {
+			// Explicitly printing error here rather than returning err to avoid "usage" message in output
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 
 		return nil
 	},
 	Version: Version,
 }
 
+// nolint: errcheck
 func init() {
 	downloadCmd.Flags().StringP("folder", "f", "", "Folder to download artifacts")
 	downloadCmd.MarkFlagRequired("folder")
@@ -197,6 +218,7 @@ func init() {
 	rootCmd.AddCommand(downloadCmd)
 }
 
+// ImageSet contains data passed to imageset template.
 type ImageSet struct {
 	Channel          string
 	Version          string
@@ -208,17 +230,20 @@ type ImageSet struct {
 	MceVersion       string
 }
 
+// ImageMapping contains data parsed from mapping file.
 type ImageMapping struct {
 	Image        string
 	ImageMapping string
 	Artifact     string
 }
 
+// DownloadJob contains image data for download.
 type DownloadJob struct {
 	Image   ImageMapping
 	Attempt int
 }
 
+// DownloadResult provides the job result.
 type DownloadResult struct {
 	Image   ImageMapping
 	Success bool
@@ -255,7 +280,7 @@ func generateMoveMappingFileCommand(tmpFolder, folder string) *exec.Cmd {
 	return exec.Command("cp", path.Join(tmpFolder, "mirror/oc-mirror-workspace/mapping.txt"), path.Join(folder, "mapping.txt"))
 }
 
-// verifyImagesExist uses "skopeo inspect" to verify the existence of specified images
+// verifyImagesExist uses "skopeo inspect" to verify the existence of specified images.
 func verifyImagesExist(images []string) error {
 	var invalidImages []string
 
@@ -270,7 +295,7 @@ func verifyImagesExist(images []string) error {
 	}
 
 	if len(invalidImages) > 0 {
-		return fmt.Errorf("The following images were explicitly requested, but are not available in remote registry:\n\n%s\n", strings.Join(invalidImages, "\n"))
+		return fmt.Errorf("The following images were explicitly requested, but are not available in remote registry:\n\n%s", strings.Join(invalidImages, "\n"))
 	}
 
 	return nil
@@ -282,32 +307,37 @@ func verifyImagesExist(images []string) error {
 // the full image list from oc-mirror, after the user has had the opportunity to modify the imageset.yaml with a private
 // registry or additional operators.
 
+// ImageSetData imageset values.
 type ImageSetData struct {
 	Mirror ImageSetMirror `yaml:"mirror"`
 }
 
+// ImageSetMirror imageset values.
 type ImageSetMirror struct {
 	Operators []ImageSetOperator `yaml:"operators,omitempty"`
 }
 
+// ImageSetChannel imageset values.
 type ImageSetChannel struct {
 	Name       string `yaml:"name"`
 	MinVersion string `yaml:"minVersion"`
 	MaxVersion string `yaml:"maxVersion"`
 }
 
+// ImageSetPackage imageset values.
 type ImageSetPackage struct {
 	Name     string            `yaml:"name"`
 	Channels []ImageSetChannel `yaml:"channels,omitempty"`
 }
 
+// ImageSetOperator imageset values.
 type ImageSetOperator struct {
 	Catalog  string            `yaml:"catalog"`
 	Packages []ImageSetPackage `yaml:"packages,omitempty"`
 }
 
 // checkOperatorVersion runs an oc-mirror query to get the list of versions for a given operator, grepping the results
-// to verify the expected version exists
+// to verify the expected version exists.
 func checkOperatorVersion(catalog, name, channel, operatorVersion string) bool {
 	shellcmd := fmt.Sprintf("oc-mirror list operators --catalog %s --package %s --channel %s | grep -q '^%s$'",
 		catalog, name, channel, regexp.QuoteMeta(operatorVersion))
@@ -315,7 +345,7 @@ func checkOperatorVersion(catalog, name, channel, operatorVersion string) bool {
 }
 
 // validateVersions parses the imageset.yaml, calling checkOperatorVersion for each operator with a specified maxVersion,
-// and assumes minVersion and maxVersion are set the same in order to specify the required version
+// and assumes minVersion and maxVersion are set the same in order to specify the required version.
 func validateVersions(folder string) error {
 	yfile, err := ioutil.ReadFile(path.Join(folder, "imageset.yaml"))
 	if err != nil {
@@ -346,7 +376,7 @@ func validateVersions(folder string) error {
 	}
 
 	if failures > 0 {
-		return fmt.Errorf("Operator version validation failed")
+		return fmt.Errorf("Version checks failed for %d operator(s)", failures)
 	}
 	return nil
 }
@@ -374,23 +404,23 @@ func runOcMirrorCommand(tmpDir, folder string) error {
 	return nil
 }
 
-// imageDownload handles the image download job
-func imageDownload(workerId int, image ImageMapping, folder string) error {
+// imageDownload handles the image download job.
+func imageDownload(workerID int, image ImageMapping, folder string) error {
 	artifactTar := image.Artifact + ".tgz"
 
 	fmt.Fprintf(os.Stdout, "Downloading: %s\n", image.Image)
 
-	scratchdir := path.Join(folder, fmt.Sprintf("scratch-%03d", workerId))
+	scratchdir := path.Join(folder, fmt.Sprintf("scratch-%03d", workerID))
 	_, err := os.Stat(scratchdir)
 	if err == nil {
 		err = os.RemoveAll(scratchdir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: unable to remove directory %s: %e\n", path.Join(folder, image.Artifact), err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "error: unable to remove directory %s\n", path.Join(folder, image.Artifact))
+			return err
 		}
 	}
 
-	err = os.Mkdir(scratchdir, 0755)
+	err = os.Mkdir(scratchdir, 0o755)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: Failed to mkdir %s: %s\n", scratchdir, err)
 		return err
@@ -425,12 +455,12 @@ func imageDownload(workerId int, image ImageMapping, folder string) error {
 	return nil
 }
 
-// imageDownloader: Worker for processing image download jobs
-func imageDownloader(wg *sync.WaitGroup, workerId int, jobs chan DownloadJob, results chan<- DownloadResult, folder string) {
+// imageDownloader: Worker for processing image download jobs.
+func imageDownloader(wg *sync.WaitGroup, workerID int, jobs chan DownloadJob, results chan<- DownloadResult, folder string) {
 	defer wg.Done()
 
 	for job := range jobs {
-		err := imageDownload(workerId, job.Image, folder)
+		err := imageDownload(workerID, job.Image, folder)
 		if err != nil && job.Attempt < MaxRequeues {
 			fmt.Fprintf(os.Stderr, "Requeueing to try again: %s\n", job.Image.Image)
 			job.Attempt++
@@ -446,8 +476,8 @@ func imageDownloader(wg *sync.WaitGroup, workerId int, jobs chan DownloadJob, re
 	}
 }
 
-// imageDownloaderResults processes the download job results channel
-func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, totalImages int, folder string, aiImages []string, aiImagesFile *os.File, ocpImagesFile *os.File) {
+// imageDownloaderResults processes the download job results channel.
+func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, totalImages int, aiImages []string, aiImagesFile, ocpImagesFile *os.File) {
 	defer wg.Done()
 
 	counter := 0
@@ -463,23 +493,21 @@ func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, t
 	}
 }
 
-func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) {
+func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) error {
 	t, err := template.New("ImageSet").Funcs(template.FuncMap{
 		"VersionAtLeast": versionAtLeast,
 		"VersionAtMost":  versionAtMost,
 	}).Parse(imageSetTemplate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to parse template: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "error: unable to parse template:\n")
+		return err
 	}
 
 	f, err := os.Create(path.Join(folder, "imageset.yaml"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to parse imageset.yaml file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "error: unable to parse imageset.yaml file:\n")
+		return err
 	}
-
-	// TODO: Validate the release version is valid with something like oc-mirror list releases --channel=stable-<channel
 
 	channel, _ := splitVersion(release)
 	acmChannel, _ := splitVersion(acmVersion)
@@ -489,36 +517,52 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	d := ImageSet{channel, release, images, duProfile, acmChannel, acmVersion, mceChannel, mceVersion}
 	err = t.Execute(f, d)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to execute template: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func downloadRootFsFile(release, folder, url string) error {
-	r := strings.Split(release, ".")
-	channel := r[0] + "." + r[1]
-
-	out, err := os.Create(path.Join(folder, "rhcos-live-rootfs.x86_64.img"))
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	resp, err := http.Get("https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/" + channel + "/latest/rhcos-live-rootfs.x86_64.img")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: unable to execute template:\n")
 		return err
 	}
 
 	return nil
 }
 
-// Once upgraded to GO 1.18, this function can be replaced by slices.Contains
+func downloadRootFsFile(folder, url string) error {
+	rootFsFilename := path.Join(folder, path.Base(url))
+
+	_, err := os.Stat(rootFsFilename)
+	if err == nil {
+		fmt.Fprintf(os.Stdout, "Exists: Skipping download of %s\n", url)
+		return nil
+	}
+
+	fmt.Fprintf(os.Stdout, "Downloading requested rootFS image: %s\n", url)
+
+	resp, err := http.Get(url) // nolint: noctx
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Unable to download %s, status %s", url, resp.Status)
+	}
+
+	out, err := os.Create(rootFsFilename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		os.Remove(rootFsFilename)
+		return err
+	}
+
+	fmt.Fprintf(os.Stdout, "Download rootFS complete\n")
+
+	return nil
+}
+
+// Once upgraded to GO 1.18, this function can be replaced by slices.Contains.
 func contains(stringlist []string, s string) bool {
 	for _, item := range stringlist {
 		if item == s {
@@ -528,16 +572,24 @@ func contains(stringlist []string, s string) bool {
 	return false
 }
 
-func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFile *os.File, ocpImagesFile *os.File) {
+func writeImageToFile(imageFile *os.File, image string) {
+	_, err := imageFile.WriteString(image + "\n")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to write to image list: %v", err)
+		os.Exit(1)
+	}
+}
+
+func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFile, ocpImagesFile *os.File) {
 	splittedImageMapping := strings.Split(imageMapping, ":")
 	if contains(aiImages, image) || strings.HasPrefix(splittedImageMapping[0], "multicluster-engine/assisted-installer") {
-		aiImagesFile.WriteString(image + "\n")
+		writeImageToFile(aiImagesFile, image)
 		if strings.Contains(splittedImageMapping[0], "assisted-installer-reporter") {
-			ocpImagesFile.WriteString(image + "\n")
+			writeImageToFile(ocpImagesFile, image)
 		}
 	} else if splittedImageMapping[0] == "openshift/release-images" {
-		aiImagesFile.WriteString(image + "\n")
-		ocpImagesFile.WriteString(image + "\n")
+		writeImageToFile(aiImagesFile, image)
+		writeImageToFile(ocpImagesFile, image)
 	} else if splittedImageMapping[0] == "openshift/release" {
 		splittedImageMapping = strings.SplitN(splittedImageMapping[1], "-", 3)
 		containerName := splittedImageMapping[2]
@@ -555,11 +607,11 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 			containerName == "cluster-bootstrap" ||
 			containerName == "cluster-ingress-operator" ||
 			containerName == "cluster-kube-apiserver-operator" {
-			aiImagesFile.WriteString(image + "\n")
+			writeImageToFile(aiImagesFile, image)
 		}
-		ocpImagesFile.WriteString(image + "\n")
+		writeImageToFile(ocpImagesFile, image)
 	} else {
-		ocpImagesFile.WriteString(image + "\n")
+		writeImageToFile(ocpImagesFile, image)
 	}
 }
 
@@ -567,86 +619,79 @@ func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
 	acmVersion, mceVersion string,
-	maxParallel int) {
+	maxParallel int) error {
 	tmpDir, err := ioutil.TempDir("", "fp-cli-")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to create temporary directory: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: unable to create temporary directory:\n")
+		return err
 	}
 	defer os.RemoveAll(tmpDir)
-
-	var rootFsFilename string
-	if url != "" {
-		rootFsFilename = path.Base(url)
-	}
-
-	if rootFsFilename != "" {
-		_, err = os.Stat(path.Join(folder, rootFsFilename))
-		if err != nil {
-			fmt.Fprintf(os.Stdout, "Downloading release rootFS image %s...\n", url)
-			err = downloadRootFsFile(release, folder, url)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: unable to download rootFS image: %v\n", err)
-				os.Exit(1)
-			}
-		}
-	}
 
 	imagesetFile := path.Join(folder, "imageset.yaml")
 
 	if !skipImageSet {
-		templatizeImageset(release, folder, aiImages, additionalImages, duProfile, acmVersion, mceVersion)
+		err = templatizeImageset(release, folder, aiImages, additionalImages, duProfile, acmVersion, mceVersion)
+		if err != nil {
+			return err
+		}
 
 		fmt.Printf("Generated %s\n", imagesetFile)
 		if generateImageSet {
-			os.Exit(0)
+			return nil
 		}
 	} else {
 		_, err = os.Stat(imagesetFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "--skip-imageset specified, but %s not found", imagesetFile)
-			os.Exit(1)
+			return fmt.Errorf("--skip-imageset specified, but %s not found", imagesetFile)
+		}
+	}
+
+	if url != "" {
+		err = downloadRootFsFile(folder, url)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: unable to download rootFS image:\n")
+			return err
 		}
 	}
 
 	fmt.Fprintf(os.Stdout, "Validating operator versions:\n")
 	err = validateVersions(folder)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: Operator version validation failed\n")
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Operator version validation failed:\n")
+		return err
 	}
 
 	fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
 	err = runOcMirrorCommand(tmpDir, folder)
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
 
 	cmd := generateMoveMappingFileCommand(tmpDir, folder)
 	stdout, err := executeCommand(cmd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+		return err
 	}
 
 	mappingFile, err := os.Open(path.Join(folder, "mapping.txt"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to open mapping.txt file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: unable to open mapping.txt file:\n")
+		return err
 	}
 	defer mappingFile.Close()
 
-	aiImagesFile, err := os.OpenFile(path.Join(folder, "ai-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	aiImagesFile, err := os.OpenFile(path.Join(folder, "ai-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to open ai-images.txt file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Error: unable to open ai-images.txt file:\n")
+		return err
 	}
 	defer aiImagesFile.Close()
 
-	ocpImagesFile, err := os.OpenFile(path.Join(folder, "ocp-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	ocpImagesFile, err := os.OpenFile(path.Join(folder, "ocp-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to open ocp-images.txt file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "error: unable to open ocp-images.txt file:\n")
+		return err
 	}
 	defer ocpImagesFile.Close()
 
@@ -676,6 +721,7 @@ func download(folder, release, url string,
 		files, err := ioutil.ReadDir(folder)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to readdir: %s\n", folder)
+			return err
 		}
 
 		for _, file := range files {
@@ -684,8 +730,8 @@ func download(folder, release, url string,
 				fpath := path.Join(folder, file.Name())
 				err = os.Remove(fpath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Unable to delete %s: %s\n", fpath, err)
-					os.Exit(1)
+					fmt.Fprintf(os.Stderr, "Unable to delete %s:\n", fpath)
+					return err
 				}
 			}
 		}
@@ -719,7 +765,7 @@ func download(folder, release, url string,
 
 	if totalJobs == 0 {
 		fmt.Fprintf(os.Stdout, "All %d images previously downloaded.\n", totalImages)
-		os.Exit(0)
+		return nil
 	}
 
 	if previous > 0 {
@@ -745,7 +791,7 @@ func download(folder, release, url string,
 	// Create results processor
 	wgResp := sync.WaitGroup{}
 	wgResp.Add(1)
-	go imageDownloaderResults(&wgResp, results, totalJobs, folder, aiImages, aiImagesFile, ocpImagesFile)
+	go imageDownloaderResults(&wgResp, results, totalJobs, aiImages, aiImagesFile, ocpImagesFile)
 
 	// Wait for imageDownloader workers to finish
 	wg.Wait()
@@ -763,16 +809,17 @@ func download(folder, release, url string,
 	summarize(release, acmVersion, mceVersion, duProfile, workers, totalImages, previous, (totalJobs - downloadFailures), downloadFailures, diff)
 
 	if downloadFailures > 0 {
-		os.Exit(1)
+		return fmt.Errorf("%d download failures occurred", downloadFailures)
 	}
+
+	return nil
 }
 
 func yesOrNo(b bool) string {
 	if b {
 		return "Yes"
-	} else {
-		return "No"
 	}
+	return "No"
 }
 
 func summarize(release, acmVersion, mceVersion string, duProfile bool, workers int,
