@@ -351,6 +351,29 @@ func validateVersions(folder string) error {
 	return nil
 }
 
+// runOcMirrorCommand runs the oc-mirror command with retries.
+func runOcMirrorCommand(tmpDir, folder string) error {
+	max_retries := 3
+	for retry := 1; retry <= max_retries; retry++ {
+		cmd := generateOcMirrorCommand(tmpDir, folder)
+		stdout, err := executeCommand(cmd)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
+
+			if retry == max_retries {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Retrying in 10 seconds...\n")
+			time.Sleep(time.Second * 10)
+			fmt.Fprintf(os.Stdout, "Retrying oc-mirror command...\n")
+		} else {
+			break
+		}
+	}
+	return nil
+}
+
 // imageDownload handles the image download job
 func imageDownload(workerId int, image ImageMapping, folder string) error {
 	artifactTar := image.Artifact + ".tgz"
@@ -594,15 +617,13 @@ func download(folder, release, url string,
 	}
 
 	fmt.Fprintf(os.Stdout, "Generating list of pre-cached artifacts...\n")
-	cmd := generateOcMirrorCommand(tmpDir, folder)
-	stdout, err := executeCommand(cmd)
+	err = runOcMirrorCommand(tmpDir, folder)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 		os.Exit(1)
 	}
 
-	cmd = generateMoveMappingFileCommand(tmpDir, folder)
-	stdout, err = executeCommand(cmd)
+	cmd := generateMoveMappingFileCommand(tmpDir, folder)
+	stdout, err := executeCommand(cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to run command %s: %s\n", strings.Join(cmd.Args, " "), string(stdout))
 		os.Exit(1)
