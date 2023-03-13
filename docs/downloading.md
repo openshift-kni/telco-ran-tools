@@ -1,24 +1,46 @@
 # factory-precaching-cli: Downloading #
 
+- [factory-precaching-cli: Downloading](#factory-precaching-cli-downloading)
+  - [Background](#background)
+  - [Pre-requisites](#pre-requisites)
+  - [Downloading the artifacts](#downloading-the-artifacts)
+    - [Preparing for the download](#preparing-for-the-download)
+    - [Parallel Downloads](#parallel-downloads)
+    - [Precaching an OCP release](#precaching-an-ocp-release)
+    - [Precaching the telco 5G RAN operators](#precaching-the-telco-5g-ran-operators)
+    - [Custom precaching for disconnected environments](#custom-precaching-for-disconnected-environments)
+
 ## Background ##
 
-As mentioned, in order to address the bandwidth limitations, a factory pre-staging solution is required to eliminate the download of artifacts at the remote site.The factory-precaching-cli (a.k.a factory-precaching-cli) tool facilitates the pre-staging of servers before they are shipped to the site for later ZTP provisioning. Remember that the idea is to focus on those servers where only one disk is available and no external disk drive is possible to be attached.
+As mentioned, in order to address the bandwidth limitations, a factory pre-staging solution is required to eliminate the
+download of artifacts at the remote site.The factory-precaching-cli (a.k.a factory-precaching-cli) tool facilitates the
+pre-staging of servers before they are shipped to the site for later ZTP provisioning. Remember that the idea is to
+focus on those servers where only one disk is available and no external disk drive is possible to be attached.
 
-This downloading stage manage both the pull of the OCP release images, and if required, it can also manage the download of the operators included in the distributed unit (DU) profile for telco 5G RAN sites. More advanced scenarios can be set up too, such as [downloading operators images from disconnected registries](#custom-precaching-for-disconnected-environments).
+This downloading stage manage both the pull of the OCP release images, and if required, it can also manage the download
+of the operators included in the distributed unit (DU) profile for telco 5G RAN sites. More advanced scenarios can be
+set up too, such as [downloading operators images from disconnected registries](#custom-precaching-for-disconnected-environments).
 
-> :warning: Notice that the list of operators can vary depending on the OCP version we are about to install. For instance, in OCP 4.12 the DU profile adds AMQ, LVM and the baremetal-event (BMER) operators compared to 4.11.
+> :warning: Notice that the list of operators can vary depending on the OCP version we are about to install. For
+  instance, in OCP 4.12 the DU profile adds AMQ, LVM and the baremetal-event (BMER) operators compared to 4.11.
 
-## Pre-requisites
+## Pre-requisites ##
 
-* The [partitioning stage](./partitioning.md) must be already executed successfully before moving to the downloading stage. In this last step is where all artifacts are stored on the local partition.
-* Currently the bare metal server needs to be connected to the Internet to obtain the dependency of OCP release images that need to be pulled down.
-* A valid pull secret to the registries involved in the downloading process of the container images is required. At least the pull secret that authenticates against the official Red Hat registries is required. It can be obtained from the [Red Hat's console UI](https://console.redhat.com/openshift/downloads#tool-pull-secret)
-* Enough space in the partition where the artifacts are going to be stored is required. More information can be found on [Partitioning pre-requisites](./partitioning.md/#pre-requisites) section.
+- The [partitioning stage](./partitioning.md) must be already executed successfully before moving to the downloading
+  stage. In this last step is where all artifacts are stored on the local partition.
+- Currently the bare metal server needs to be connected to the Internet to obtain the dependency of OCP release images that need to be pulled down.
+- A valid pull secret to the registries involved in the downloading process of the container images is required. At
+  least the pull secret that authenticates against the official Red Hat registries is required. It can be obtained from
+  the [Red Hat's console UI](https://console.redhat.com/openshift/downloads#tool-pull-secret)
+- Enough space in the partition where the artifacts are going to be stored is required. More information can be found on
+  [Partitioning pre-requisites](./partitioning.md/#pre-requisites) section.
 
+## Downloading the artifacts ##
 
- ## Downloading the artifacts
-
-In this stage, we can split the tasks up to downloading the OCP release container images and the day-2 operators, specifically the telco DU profile approved operators. Before starting, however, we need to know in advance what version of RHACM is going to provision the SNO. The version of the hub cluster will determine what assisted installer container images are used by the SNO to provision and report back the inventory and progress of the spoke cluster.
+In this stage, we can split the tasks up to downloading the OCP release container images and the day-2 operators,
+specifically the telco DU profile approved operators. Before starting, however, we need to know in advance what version
+of RHACM is going to provision the SNO. The version of the hub cluster will determine what assisted installer container
+images are used by the SNO to provision and report back the inventory and progress of the spoke cluster.
 
 You can check the version of ACM and MCE by executing these commands in the hub cluster:
 
@@ -35,22 +57,30 @@ multicluster-engine                                openshift-pipelines-operator-
 
 >:warning: RHACM has as a prereq the MCE, so installing RHACM will also install MCE.
 
-### Preparing for the download
+### Preparing for the download ###
 
-Before starting to pull down the images we need to copy a valid pull secret to access the container registry. Notice that this is done in the server that is going to be installed. It is important to copy the pull secret in the folder shown below as `config.json`. This is a path where Podman will check by default the credentials to login into any registry.
+Before starting to pull down the images we need to copy a valid pull secret to access the container registry. Notice
+that this is done in the server that is going to be installed. It is important to copy the pull secret in the folder
+shown below as `config.json`. This is a path where Podman will check by default the credentials to login into any
+registry.
 
 ```console
-$ mkdir /root/.docker
-$ cp config.json /root/.docker/config.json
+mkdir /root/.docker
+cp config.json /root/.docker/config.json
 ```
 
 >:exclamation: The pull secret to access the online Red Hat registries can be found in the [console.redhat.com UI](https://console.redhat.com/openshift/downloads#tool-pull-secret)
 
-It is worth mentioning that if you are using a different registry to pull the content down you need to copy the proper pull secret. If the local registry uses TLS then you need also to include the certificates from the registry as well.
+It is worth mentioning that if you are using a different registry to pull the content down you need to copy the proper
+pull secret. If the local registry uses TLS then you need also to include the certificates from the registry as well.
 
-### Parallel Downloads
+### Parallel Downloads ###
 
-The factory-precaching-cli tool will use parallel workers to download multiple images simultaneously. The number of workers to use can be configured by specifying the --parallel (or -p) option, which defaults to 80% of the available CPUs. Please note that your login shell may be restricted to a subset of CPUs, which will reduce the CPUs available to the container. If so, it is recommended that you precede your command with `taskset 0xffffffff` to remove this restriction:
+The factory-precaching-cli tool will use parallel workers to download multiple images simultaneously. The number of
+workers to use can be configured by specifying the --parallel (or -p) option, which defaults to 80% of the available
+CPUs. Please note that your login shell may be restricted to a subset of CPUs, which will reduce the CPUs available to
+the container. If so, it is recommended that you precede your command with `taskset 0xffffffff` to remove this
+restriction:
 
 ```console
 # taskset 0xffffffff podman run --rm quay.io/openshift-kni/telco-ran-tools:latest factory-precaching-cli download --help
@@ -76,14 +106,14 @@ Flags:
   -v, --version              version for download
 ```
 
-### Precaching an OCP release
+### Precaching an OCP release ###
 
 The factory-precaching-cli tool allows us to precache all the container images required to provision a specific OCP release. In the following execution we are:
 
-* Precaching 4.11.5 OCP release
-* Copying all the dependent artifacts into /mnt
-* Mounting the pull secret that we just created into /root/.docker
-* Including an extra image that we want to be copied and extracted during the installation stage (--img)
+- Precaching 4.11.5 OCP release
+- Copying all the dependent artifacts into /mnt
+- Mounting the pull secret that we just created into /root/.docker
+- Including an extra image that we want to be copied and extracted during the installation stage (--img)
 
 Note that we could also specify explicit installer images to be precached, using the --ai-img option.
 
@@ -149,11 +179,16 @@ $ ls -l /mnt
 -rw-r--r--. 1 root root  306643814 Oct 31 15:11 troubleshoot@sha256_b86b8aea29a818a9c22944fd18243fa0347c7a2bf1ad8864113ff2bb2d8e0726.tgz
 ```
 
-### Precaching the telco 5G RAN operators
+### Precaching the telco 5G RAN operators ###
 
-Aside from precaching the OCP release, we can also precache the day-2 operators used in telco 5G RAN. They are known as well as the telco 5G RAN distributed unit (DU) profile. They depend on the version of OCP that is going to be installed. However, you just need to add the `--du-profile` argument so that the factory-precaching-cli will do the hard work for you. 
+Aside from precaching the OCP release, we can also precache the day-2 operators used in telco 5G RAN. They are known as
+well as the telco 5G RAN distributed unit (DU) profile. They depend on the version of OCP that is going to be installed.
+However, you just need to add the `--du-profile` argument so that the factory-precaching-cli will do the hard work for
+you.
 
-Notice that you need also to include the ACM and MCE versions, using `--acm-version` and `--mce-version`, so that the tool figures out what containers images from RHACM and MCE operators need to pre-stage. Note the ACM version is only required if `--du-profile` is specified, while MCE version is always needed.
+Notice that you need also to include the ACM and MCE versions, using `--acm-version` and `--mce-version`, so that the
+tool figures out what containers images from RHACM and MCE operators need to pre-stage. Note the ACM version is only
+required if `--du-profile` is specified, while MCE version is always needed.
 
 Please also note the `--hub-version` option has been deprecated in favour of the separate `--acm-version` and
 `--mce-version` options, to support independent versioning.
@@ -202,11 +237,12 @@ Time for Download:                  9m43s
 
 >:exclamation: Notice that the number of containers precached highly increases because of the operators included in the DU profile. In the previous example we moved from 176 container images to 376.
 
+### Custom precaching for disconnected environments ###
 
-### Custom precaching for disconnected environments
-
-By default the factory-precaching-cli tool enables the argument `--generate-imageset`, which will create an `imageset` yaml definition including the OCP release and the optional telco 5G RAN operators required for the specific OCP release. However, this automatically generated file can be modified to our needs. In the following example, we are going to generate an `ImageSetConfiguration` based on the arguments passed to the tool and then stop.
-
+By default the factory-precaching-cli tool enables the argument `--generate-imageset`, which will create an `imageset`
+yaml definition including the OCP release and the optional telco 5G RAN operators required for the specific OCP release.
+However, this automatically generated file can be modified to our needs. In the following example, we are going to
+generate an `ImageSetConfiguration` based on the arguments passed to the tool and then stop.
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
@@ -221,11 +257,10 @@ Generated /mnt/imageset.yaml
 
 Based on the options included in the call, an imageset like the following one is created. Notice that an `ImageSetConfiguration` is a custom resource definition (CRD) managed by oc-mirror. In this CR you can see that:
 
-* The OCP release version and channel match the one passed to the tool.
-* Additional images are included too,
-* The operator's section includes the 5G RAN DU operators for the 4.11.z release of OpenShift: LSO, PTP, SR-IOV, Logging and the Accelerator operator.
-* The RHACM and MCE operators match the `--acm-version` and `--mce-version` versions passed to the tool.
-
+- The OCP release version and channel match the one passed to the tool.
+- Additional images are included too,
+- The operator's section includes the 5G RAN DU operators for the 4.11.z release of OpenShift: LSO, PTP, SR-IOV, Logging and the Accelerator operator.
+- The RHACM and MCE operators match the `--acm-version` and `--mce-version` versions passed to the tool.
 
 ```yaml
 apiVersion: mirror.openshift.io/v1alpha2
@@ -272,7 +307,10 @@ mirror:
             - name: 'stable'
 ```
 
-At this point, we can just modify the imageset definition to include new operators or additional images. On the other hand, we can just remove some of them if they are not going to be used. Another interesting idea is that we can replace operators or catalog sources to use the ones that are in a local or disconnected registry instead of the official Red Hat registry. That's what we are going to do:
+At this point, we can just modify the imageset definition to include new operators or additional images. On the other
+hand, we can just remove some of them if they are not going to be used. Another interesting idea is that we can replace
+operators or catalog sources to use the ones that are in a local or disconnected registry instead of the official Red
+Hat registry. That's what we are going to do:
 
 ```yaml
 apiVersion: mirror.openshift.io/v1alpha2
@@ -315,7 +353,6 @@ Then, we need to start the downloading of the images by explicitly (--skip-image
 
 >:warning: If you are going to pull content from a different registry you have to include the proper pull secret in the .docker/config.json file. Also, you have to probably include the proper certificates too.
 
-
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
     download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
@@ -344,12 +381,14 @@ The previous error is basically saying that we are missing the certificates of t
 
 >:exclamation: Remember that our server is currently running a live ISO RHCOS image.
 
-```
+``` console
 # cp /tmp/eko4-ca.crt /etc/pki/ca-trust/source/anchors/.
 # update-ca-trust 
 ```
 
-Next, we just need to mount the host `/etc/pki` folder into the factory-precaching-cli container image. The factory-precaching-cli image is built on a UBI RHEL image, so paths and locations for certificates are going hand by hand with RHCOS (based on RHEL too). Take that into account when mounting host folders.
+Next, we just need to mount the host `/etc/pki` folder into the factory-precaching-cli container image. The
+factory-precaching-cli image is built on a UBI RHEL image, so paths and locations for certificates are going hand by
+hand with RHCOS (based on RHEL too). Take that into account when mounting host folders.
 
 ```console
 # podman run -v /mnt:/mnt -v /root/.docker:/root/.docker -v /etc/pki:/etc/pki --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- \

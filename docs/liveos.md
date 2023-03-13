@@ -1,19 +1,36 @@
 # Factory-cli: Booting from a live OS #
 
+- [Factory-cli: Booting from a live OS](#factory-cli-booting-from-a-live-os)
+  - [Background](#background)
+  - [Boot from RHCOS live](#boot-from-rhcos-live)
+    - [Example: Mounting on a Dell Server](#example-mounting-on-a-dell-server)
+  - [Interacting with RHCOS live](#interacting-with-rhcos-live)
+  - [Create a custom RHCOS live ISO](#create-a-custom-rhcos-live-iso)
+    - [Verification](#verification)
+
 ## Background ##
 
-We want to focus on target servers where only one disk is available and no external disk drive is possible to be attached. Assisted installer, which is part of the ZTP flow, leverages the coreos-installer utility to write RHCOS to disk. This means that if we boot from a pre-installed RHCOS on a single disk, the utility will complain because the device is in use and cannot finish the process of writing. Then, the only way we have to run the full pre-caching process is by booting from a live ISO and using the factory-cli tool from a container image to partition and pre-cache all the artifacts required.
+We want to focus on target servers where only one disk is available and no external disk drive is possible to be
+attached. Assisted installer, which is part of the ZTP flow, leverages the coreos-installer utility to write RHCOS to
+disk. This means that if we boot from a pre-installed RHCOS on a single disk, the utility will complain because the
+device is in use and cannot finish the process of writing. Then, the only way we have to run the full pre-caching
+process is by booting from a live ISO and using the factory-cli tool from a container image to partition and pre-cache
+all the artifacts required.
 
-:warning: RHCOS requires the disk to not be in use when is about to be written by an RHCOS image. Reinstalling onto the current boot disk is an unusual requirement, and the coreos-installer utility wasn't designed for it.
+:warning: RHCOS requires the disk to not be in use when is about to be written by an RHCOS image. Reinstalling onto the
+current boot disk is an unusual requirement, and the coreos-installer utility wasn't designed for it.
 
-## Boot from RHCOS live
+## Boot from RHCOS live ##
 
-Technically you can boot from any live ISO that provides container tools such as podman. However, the supported and tested OS is Red Hat CoreOS. You can obtain the latest live ISO from [here](https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/latest/rhcos-live.x86_64.iso)
+Technically you can boot from any live ISO that provides container tools such as podman. However, the supported and
+tested OS is Red Hat CoreOS. You can obtain the latest live ISO from
+[here](https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/latest/rhcos-live.x86_64.iso)
 
-### Example: Mounting on a Dell Server
+### Example: Mounting on a Dell Server ###
+
 If you are running the install on a Dell Server you can use this simple script that leverages racadm to mount RHCOS live ISO from a local HTTPd server.
 
-```
+``` bash
 #/bin/bash
 
 CONTAINER_TOOL=podman
@@ -28,7 +45,7 @@ ${CONTAINER_TOOL} run --network host --rm -it quay.io/alosadag/racadm:latest -r 
 
 Then run the script:
 
-```
+``` console
 ./rhcos-live-racadm.sh 10.19.28.53
 Security Alert: Certificate is invalid - self signed certificate
 Continuing execution. Use -S option for racadm to stop execution on certificate-related errors.
@@ -58,7 +75,7 @@ Server power operation initiated successfully
 
 You can also interact directly with the redfish interface, in case there is one available:
 
-```
+``` console
 //Media Status
 curl --globoff -H "Content-Type: application/json" -H "Accept: application/json" -k -X GET --user ${username_password} https://$BMC_ADDRESS/redfish/v1/Managers/Self/VirtualMedia/1 | python -m json.tool
 
@@ -71,31 +88,33 @@ curl --globoff  -L -w "%{http_code} %{url_effective}\\n"  -ku ${username_passwor
 
 Then reboot the server and make sure it is booting from virtual media.
 
-
 ![Booting from virtualmedia](images/idrac-virtualmedia.png "Booting from virtualmedia")
 
+## Interacting with RHCOS live ##
 
+Once you have mounted the live ISO using the IPMI interface and booted from virtual media you can connect to the virtual
+console of your target server.  You should see that you are already logged into the system as the `core` user. In order
+to make your life easier for setting up the next stage: [partitioning](../partitioning.md) we suggest permitting login
+via SSH:
 
-## Interacting with RHCOS live
-
-Once you have mounted the live ISO using the IPMI interface and booted from virtual media you can connect to the virtual console of your target server.  You should see that you are already logged into the system as the `core` user. In order to make your life easier for setting up the next stage: [partitioning](../partitioning.md) we suggest permitting login via SSH:
-
-* Execute sudo to root
-* Modify the /etc/ssh/sshd_config by allowing accessing using a password (PasswordAuthentication yes) and root as user (PermitRootLogin yes).
-* Reload the sshd systemd service
-* Change root password
-
+- Execute sudo to root
+- Modify the /etc/ssh/sshd_config by allowing accessing using a password (PasswordAuthentication yes) and root as user (PermitRootLogin yes).
+- Reload the sshd systemd service
+- Change root password
 
 At this point you should be able to SSH to the server and continue with the [partitioning](../partitioning.md) stage.
 
+## Create a custom RHCOS live ISO ##
 
-## Create a custom RHCOS live ISO 
-
-As we can see in the previous section, by default SSH server is not started in the live OS. The process mentioned above is valid, but tedious. Also it is not suitable for automating the precache process. In such cases where there is a need to automate the process we can leverage butane and the coreos-installer utilities.
+As we can see in the previous section, by default SSH server is not started in the live OS. The process mentioned above
+is valid, but tedious. Also it is not suitable for automating the precache process. In such cases where there is a need
+to automate the process we can leverage butane and the coreos-installer utilities.
 
 Let's create a RHCOS live ISO with SSHd enabled and with some predefined credentials so it can be accessed right after booting.
 
-First we need a download the RHCOS live ISO, for instance from [here](https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/latest/rhcos-live.x86_64.iso). That live ISO will be the base for creating a new one with the proper configuration.
+First we need a download the RHCOS live ISO, for instance from
+[here](https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/latest/rhcos-live.x86_64.iso). That live
+ISO will be the base for creating a new one with the proper configuration.
 
 Next, you need a yaml definition that will be used by [butane](https://coreos.github.io/butane/) to create an ignition file:
 
@@ -121,7 +140,7 @@ storage:
 
 Notice that besides user and password, you can also include an authorized SSH key.
 
-Next step is creating a folder called files-dir that will include the sshd_config that will overwrite the default sshd_config included in the live ISO. 
+Next step is creating a folder called files-dir that will include the sshd_config that will overwrite the default sshd_config included in the live ISO.
 
 An example of a valid sshd_config is shown here:
 
@@ -278,7 +297,7 @@ Subsystem       sftp    /usr/libexec/openssh/sftp-server
 Then, we are ready to run butane passing as arguments the previous yaml file and the folder we just created. Butane will transform the yaml custom configuration into an ignition file that coreos-installer can understand.
 
 ```console
-$ butane -p embedded.yaml -d files-dir/ > embedded.ign
+butane -p embedded.yaml -d files-dir/ > embedded.ign
 ```
 
 Once the ignition file is created, coreos-installer will help us to include the configuration into a new RHCOS live ISO named rhcos-sshd-4.11.0-x86_64-live.x86_64.iso:
@@ -289,13 +308,12 @@ coreos-installer iso ignition embed -i embedded.ign rhcos-4.11.0-x86_64-live.x86
 
 So, now we are ready to publish the new ISO (rhcos-sshd-4.11.0-x86_64-live.x86_64.iso) so it can be used to boot the server.
 
-
-### Verification
+### Verification ###
 
 It is suggested to verify that the new custom live ISO includes the configuration desired by running this command:
 
-```sh
-# coreos-installer iso ignition show rhcos-sshd-4.11.0-x86_64-live.x86_64.iso
+```console
+coreos-installer iso ignition show rhcos-sshd-4.11.0-x86_64-live.x86_64.iso
 ```
 
 ```json

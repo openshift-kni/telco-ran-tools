@@ -90,3 +90,23 @@ test-unit-cmd:
 .PHONY: test-e2e
 test-e2e: binaries
 	ginkgo test/e2e
+
+PULL_BASE_SHA ?= origin/main # Allow the template check base ref to be overridden
+
+.PHONY: markdownlint-image
+markdownlint-image:  ## Build local container markdownlint-image
+	$(RUNTIME) image build -f ./hack/Dockerfile.markdownlint --tag $(IMAGENAME)-markdownlint:latest
+
+.PHONY: markdownlint-image-clean
+markdownlint-image-clean:  ## Remove locally cached markdownlint-image
+	$(RUNTIME) image rm $(IMAGENAME)-markdownlint:latest
+
+markdownlint: markdownlint-image  ## run the markdown linter
+	$(RUNTIME) run \
+		--rm=true \
+		--env RUN_LOCAL=true \
+		--env VALIDATE_MARKDOWN=true \
+		--env PULL_BASE_SHA=$(PULL_BASE_SHA) \
+		-v $$(pwd):/workdir:Z \
+		$(IMAGENAME)-markdownlint:latest
+
