@@ -1,0 +1,104 @@
+---
+run:
+  concurrency: 6
+  deadline: 5m
+  skip-files:
+    - ".*_test\\.go"
+linters:
+  disable-all: true
+  presets:
+    - bugs
+    - comment
+  enable:
+    - asciicheck
+    - bidichk
+    - depguard
+    - errcheck
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+linters-settings:
+  gosec:
+    excludes:
+      - G107
+      - G204
+  revive:
+    rules:
+      - name: if-return
+        severity: warning
+        disabled: true
+  gocritic:
+    enabled-checks:
+      # Diagnostic
+      - argOrder
+      - badCond
+      - caseOrder
+      - codegenComment
+      - commentedOutCode
+      - deprecatedComment
+      - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupSubExpr
+      - exitAfterDefer
+      - flagDeref
+      - flagName
+      - nilValReturn
+      - offBy1
+      - weakCond
+      - octalLiteral
+      - sloppyReassign
+
+      # Performance
+      - equalFold
+      - indexAlloc
+      - rangeExprCopy
+      - appendCombine
+
+      # Style
+      - assignOp
+      - boolExprSimplify
+      - captLocal
+      - commentFormatting
+      - commentedOutImport
+      - defaultCaseOrder
+      - docStub
+      - elseif
+      - emptyFallthrough
+      - emptyStringTest
+      - hexLiteral
+      - methodExprCall
+      - regexpMust
+      - singleCaseSwitch
+      - sloppyLen
+      - stringXbytes
+      - switchTrue
+      - typeAssertChain
+      - typeSwitchVar
+      - underef
+      - unlabelStmt
+      - unlambda
+      - unslice
+      - valSwap
+      - yodaStyleExpr
+      - wrapperFunc
+
+      # Opinionated
+      - initClause
+      - nestingReduce
+      - ptrToRefParam
+      - typeUnparen
+      - unnecessaryBlock
+      - paramTypeCombine
