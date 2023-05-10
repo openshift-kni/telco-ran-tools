@@ -340,7 +340,15 @@ type ImageSetOperator struct {
 func checkOperatorVersion(catalog, name, channel, operatorVersion string) bool {
 	shellcmd := fmt.Sprintf("oc-mirror list operators --catalog %s --package %s --channel %s | grep -q '^%s$'",
 		catalog, name, channel, regexp.QuoteMeta(operatorVersion))
-	return (exec.Command("bash", "-c", shellcmd).Run() == nil)
+	cmd := exec.Command("bash", "-c", shellcmd)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if cmd.Run() != nil {
+		fmt.Fprint(os.Stderr, stderr.String())
+		os.Stderr.Sync()
+		return false
+	}
+	return true
 }
 
 // validateVersions parses the imageset.yaml, calling checkOperatorVersion for each operator with a specified maxVersion,
@@ -365,8 +373,9 @@ func validateVersions(folder string) error {
 				if len(channel.MaxVersion) > 0 {
 					fmt.Fprintf(os.Stdout, "Checking %s version %s...\n", pkg.Name, channel.MaxVersion)
 					if !checkOperatorVersion(op.Catalog, pkg.Name, channel.Name, channel.MaxVersion) {
-						fmt.Fprintf(os.Stdout, "%s version %s not found in channel %s: Catalog %s\n",
+						fmt.Fprintf(os.Stderr, "%s version %s not found in channel %s: Catalog %s\n\n",
 							pkg.Name, channel.MaxVersion, channel.Name, op.Catalog)
+						os.Stderr.Sync()
 						failures++
 					}
 				}
