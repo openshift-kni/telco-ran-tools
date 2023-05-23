@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/golang:1.18-bullseye as builder
+FROM mirror.gcr.io/library/golang:1.19-bullseye as builder
 
 WORKDIR /workspace
 
@@ -9,7 +9,7 @@ COPY . .
 RUN hack/build-binaries.sh
 
 # Create image
-FROM registry.ci.openshift.org/ocp/4.12:tools
+FROM registry.ci.openshift.org/ocp/4.13:tools
 RUN yum install -y skopeo gdisk && \
     yum clean -y all
 RUN curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp-dev-preview/latest/oc-mirror.tar.gz \

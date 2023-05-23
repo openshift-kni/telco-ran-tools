@@ -1,6 +1,6 @@
 module github.com/openshift-kni/telco-ran-tools
 
-go 1.17
+go 1.19
 
 require (
 	github.com/openshift/build-machinery-go v0.0.0-20220429084610-baff9f8d23b3
