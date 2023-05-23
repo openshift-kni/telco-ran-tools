@@ -1,4 +1,4 @@
-FROM mirror.gcr.io/library/golang:1.19-bullseye as builder
+FROM registry.hub.docker.com/library/golang:1.19 as builder
 
 WORKDIR /workspace
 
