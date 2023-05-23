@@ -66,13 +66,13 @@ nvme0n1 259:1    0   1.5T  0 disk
 
 > :exclamation: It is recommended to use NVME disk in your servers.
 
-A second prerequisite is being able to pull the quay.io/openshift-kni/telco-ran-tools:latest that will be used to run
+A second prerequisite is being able to pull the quay.io/openshift-kni/telco-ran-tools:1.0 that will be used to run
 the factory-cli tool. The image is publicly available in quay.io but if you are in a disconnected environment or have a
 corporate private registry, you will need to copy the image there so it can be downloaded to the server.
 
 ``` console
-[root@snonode /]# podman pull quay.io/openshift-kni/telco-ran-tools:latest
-Trying to pull quay.io/openshift-kni/telco-ran-tools:latest...
+[root@snonode /]# podman pull quay.io/openshift-kni/telco-ran-tools:1.0
+Trying to pull quay.io/openshift-kni/telco-ran-tools:1.0...
 Getting image source signatures
 Copying blob 97da74cc6d8f done  
 Copying blob 8700ab5d88a1 done  
@@ -89,7 +89,7 @@ Storing signatures
 ```
 
 ``` console
-[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli -v
+[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli -v
 factory-precaching-cli version 20221018.120852+main.feecf17
 ```
 
@@ -106,7 +106,7 @@ Finally, we need to be sure that the disk is big enough to install OpenShift and
 Let's start with the partitioning, for that we will use the partition argument from the factory-cli. See here all the options we have:
 
 ``` console
-[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition --help
+[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli partition --help
 Partitions and formats a disk
 
 Usage:
@@ -155,7 +155,7 @@ that the process can be executed inside the container. Finally, notice that the 
 expect to precache also the day-2 operators required for the DU profile.
 
 ``` console
-[root@snonode /]# podman run -v /dev:/dev --privileged -it --rm  quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition -d /dev/nvme0n1 -s 250
+[root@snonode /]# podman run -v /dev:/dev --privileged -it --rm  quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli partition -d /dev/nvme0n1 -s 250
 Partition /dev/nvme0n1p1 is being formatted
 
 [root@snonode /]# lsblk

@@ -83,7 +83,7 @@ the container. If so, it is recommended that you precede your command with `task
 restriction:
 
 ```console
-# taskset 0xffffffff podman run --rm quay.io/openshift-kni/telco-ran-tools:latest factory-precaching-cli download --help
+# taskset 0xffffffff podman run --rm quay.io/openshift-kni/telco-ran-tools:1.0 factory-precaching-cli download --help
 Downloads and pre-caches artifacts
 
 Usage:
@@ -194,7 +194,7 @@ Please also note the `--hub-version` option has been deprecated in favour of the
 `--mce-version` options, to support independent versioning.
 
 ```console
-# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
+# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli \
     download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
@@ -245,7 +245,7 @@ However, this automatically generated file can be modified to our needs. In the 
 generate an `ImageSetConfiguration` based on the arguments passed to the tool and then stop.
 
 ```console
-# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
+# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli \
     download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
@@ -354,7 +354,7 @@ Then, we need to start the downloading of the images by explicitly (--skip-image
 >:warning: If you are going to pull content from a different registry you have to include the proper pull secret in the .docker/config.json file. Also, you have to probably include the proper certificates too.
 
 ```console
-# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
+# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:1.0 -- factory-precaching-cli \
     download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
@@ -391,7 +391,7 @@ factory-precaching-cli image is built on a UBI RHEL image, so paths and location
 hand with RHCOS (based on RHEL too). Take that into account when mounting host folders.
 
 ```console
-# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker -v /etc/pki:/etc/pki --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- \
+# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker -v /etc/pki:/etc/pki --privileged --rm quay.io/openshift-kni/telco-ran-tools:1.0 -- \
     factory-precaching-cli download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
