@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -347,7 +346,7 @@ func checkOperatorVersion(catalog, name, channel, operatorVersion string) bool {
 // validateVersions parses the imageset.yaml, calling checkOperatorVersion for each operator with a specified maxVersion,
 // and assumes minVersion and maxVersion are set the same in order to specify the required version.
 func validateVersions(folder string) error {
-	yfile, err := ioutil.ReadFile(path.Join(folder, "imageset.yaml"))
+	yfile, err := os.ReadFile(path.Join(folder, "imageset.yaml"))
 	if err != nil {
 		return err
 	}
@@ -620,7 +619,7 @@ func download(folder, release, url string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
 	acmVersion, mceVersion string,
 	maxParallel int) error {
-	tmpDir, err := ioutil.TempDir("", "fp-cli-")
+	tmpDir, err := os.MkdirTemp("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: unable to create temporary directory:\n")
 		return err
@@ -718,7 +717,7 @@ func download(folder, release, url string,
 			expectedTarfiles[image.Artifact+".tgz"] = true
 		}
 
-		files, err := ioutil.ReadDir(folder)
+		files, err := os.ReadDir(folder)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Unable to readdir: %s\n", folder)
 			return err
