@@ -22,6 +22,10 @@ COPY policy.json /etc/containers/policy.json
 
 COPY --from=builder /workspace/_output/ /usr/local/bin/
 
+RUN mkdir /usr/local/bin/regression-tests
+COPY regression/regression-suite*.sh /usr/local/bin/
+COPY regression/regression-test-*.sh /usr/local/bin/regression-tests/
+
 # no tool is more important than others
 ENTRYPOINT ["/run.sh"]
 CMD ["/help.sh"]
