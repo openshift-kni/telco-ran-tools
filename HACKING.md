@@ -51,31 +51,30 @@ the `download` command, as it will run `oc-mirror`, but it will avoid downloadin
 folder as needed. In addition, developers should run the regression tests prior to posting a pull request.
 
 ```console
-[root@host core]# time podman run -v /root/.docker:/root/.docker --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- regression-suite.sh
+[root@host core]# time podman run -v /var/lib/kubelet/config.json:/root/.docker/config.json:Z --rm quay.io/openshift-kni/telco-ran-tools:latest -- regression-suite.sh
 ################################################################################
-Wed May 24 18:39:26 UTC 2023: Running test: du-profile
+Mon May 29 13:25:28 UTC 2023: Running test: du-profile
 ################################################################################
-Wed May 24 18:43:54 UTC 2023: Running test: generate-imageset
-/usr/local/bin/regression-tests/regression-test-generate-imageset.sh: line 76: [: /mnt/testsuite/imageset.yaml: integer expression expected
+Mon May 29 13:30:02 UTC 2023: Running test: generate-imageset
 ################################################################################
-Wed May 24 18:43:54 UTC 2023: Running test: invalid-acm-version-format
+Mon May 29 13:30:02 UTC 2023: Running test: invalid-acm-version-format
 ################################################################################
-Wed May 24 18:43:54 UTC 2023: Running test: invalid-mce-version-format
+Mon May 29 13:30:02 UTC 2023: Running test: invalid-mce-version-format
 ################################################################################
-Wed May 24 18:43:54 UTC 2023: Running test: invalid-version-format
+Mon May 29 13:30:02 UTC 2023: Running test: invalid-version-format
 ################################################################################
-Wed May 24 18:43:54 UTC 2023: Running test: keep-stale
+Mon May 29 13:30:02 UTC 2023: Running test: keep-stale
 Stale file found: /mnt/testsuite/not-a-real-image@sha256_1234567890123456789012345678901234567890123456789012345678901234.tgz
 ################################################################################
-Wed May 24 18:46:48 UTC 2023: Running test: stale-cleanup
+Mon May 29 13:32:58 UTC 2023: Running test: stale-cleanup
 ################################################################################
-Wed May 24 18:49:41 UTC 2023: Running test: unavailable-acm-and-mce-versions
+Mon May 29 13:35:54 UTC 2023: Running test: unavailable-acm-and-mce-versions
 ################################################################################
-Wed May 24 18:51:39 UTC 2023: Running test: unavailable-acm-version
+Mon May 29 13:37:53 UTC 2023: Running test: unavailable-acm-version
 ################################################################################
-Wed May 24 18:53:35 UTC 2023: Running test: unavailable-mce-version
+Mon May 29 13:39:49 UTC 2023: Running test: unavailable-mce-version
 ################################################################################
-Wed May 24 18:54:32 UTC 2023: Running test: unknown-option
+Mon May 29 13:40:48 UTC 2023: Running test: unknown-option
 ################################################################################
 
 Test Results:
@@ -98,8 +97,8 @@ Number of tests run:  11
 Total passed:         11
 Total failed:          0
 
-real    15m7.076s
-user    0m0.510s
-sys     0m0.383s
+real    15m22.912s
+user    0m1.519s
+sys     0m0.667s
 [root@host core]#
 ```

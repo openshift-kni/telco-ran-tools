@@ -3,7 +3,7 @@
 # Runs invalid parameter handling tests
 #
 
-source /usr/local/bin/regression-suite-functions.sh
+source /usr/local/bin/regression-suite-common.sh
 
 # Create a fake image file for stale cleanup test
 echo "Test image" > "${TESTFOLDER}"/not-a-real-image@sha256_1234567890123456789012345678901234567890123456789012345678901234.tgz
@@ -12,8 +12,8 @@ echo "Test image" > "${TESTFOLDER}"/not-a-real-image@sha256_12345678901234567890
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version 2.2.0 \
-    -r 4.12.15 \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
+    -r "${DEFAULT_TEST_RELEASE}" \
     >& command-output.txt
 rc=$?
 

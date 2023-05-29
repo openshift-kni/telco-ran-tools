@@ -3,12 +3,14 @@
 # Runs invalid parameter handling tests
 #
 
+source /usr/local/bin/regression-suite-common.sh
+
 # Run the command, capturing the output and RC
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version 2.2.0 \
-    -r 4.12.15 \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
+    -r "${DEFAULT_TEST_RELEASE}" \
     --not-a-valid-option \
     >& command-output.txt
 rc=$?

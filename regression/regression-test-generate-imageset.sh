@@ -3,14 +3,14 @@
 # Runs invalid parameter handling tests
 #
 
-source /usr/local/bin/regression-suite-functions.sh
+source /usr/local/bin/regression-suite-common.sh
 
 # Run the command, capturing the output and RC
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version 2.2.0 \
-    -r 4.12.15 \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
+    -r "${DEFAULT_TEST_RELEASE}" \
     --generate-imageset \
     >& command-output.txt
 rc=$?
@@ -37,9 +37,9 @@ kind: ImageSetConfiguration
 mirror:
   platform:
     channels:
-    - name: stable-4.12
-      minVersion: 4.12.15
-      maxVersion: 4.12.15
+    - name: stable-${DEFAULT_TEST_RELEASE_Y}
+      minVersion: ${DEFAULT_TEST_RELEASE}
+      maxVersion: ${DEFAULT_TEST_RELEASE}
   additionalImages:
 #
 # Example operators specification:
@@ -58,13 +58,13 @@ mirror:
 #          channels:
 #            - name: 'stable'
   operators:
-    - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.12
+    - catalog: registry.redhat.io/redhat/redhat-operator-index:v${DEFAULT_TEST_RELEASE_Y}
       packages:
         - name: multicluster-engine
           channels:
-            - name: 'stable-2.2'
-              minVersion: 2.2.0
-              maxVersion: 2.2.0
+            - name: 'stable-${DEFAULT_TEST_MCE_RELEASE_Y}'
+              minVersion: ${DEFAULT_TEST_MCE_RELEASE}
+              maxVersion: ${DEFAULT_TEST_MCE_RELEASE}
 EOF
 
 if ! diff expected-imageset.yaml "${TESTFOLDER}/imageset.yaml" ; then
@@ -72,7 +72,8 @@ if ! diff expected-imageset.yaml "${TESTFOLDER}/imageset.yaml" ; then
     exit 1
 fi
 
-numfiles=$(find "${TESTFOLDER}" -type f)
+declare -i numfiles=0
+numfiles=$(find "${TESTFOLDER}" -type f | wc -l)
 if [ "${numfiles}" -ne 1 ]; then
     echo "Expected to find 1 file in ${TESTFOLDER}, but found ${numfiles}"
     exit 1

@@ -1,4 +1,22 @@
 #!/bin/bash
+#
+# Common functions and constants for telco-ran-tools built-in regression test suite
+#
+
+#
+# Constants
+#
+# shellcheck disable=SC2034
+DEFAULT_TEST_RELEASE="4.12.15"
+DEFAULT_TEST_RELEASE_Y="4.12"
+DEFAULT_TEST_UNAVAILABLE_VERSION="99.99.99"
+DEFAULT_TEST_BAD_VERSION_FORMAT="4.12.notaversion"
+DEFAULT_TEST_ACM_RELEASE="2.7.0"
+DEFAULT_TEST_ACM_RELEASE_Y="2.7"
+DEFAULT_TEST_ACM_BAD_VERSION_FORMAT="2.7.notaversion"
+DEFAULT_TEST_MCE_RELEASE="2.2.0"
+DEFAULT_TEST_MCE_RELEASE_Y="2.2"
+DEFAULT_TEST_MCE_BAD_VERSION_FORMAT="2.2.notaversion"
 
 #
 # Check mapping.txt to ensure all files are downloaded and in either ai-images.txt or ocp-images.txt

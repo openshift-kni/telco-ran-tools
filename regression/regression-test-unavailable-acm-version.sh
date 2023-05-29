@@ -3,14 +3,16 @@
 # Runs invalid parameter handling tests
 #
 
+source /usr/local/bin/regression-suite-common.sh
+
 # Run the command, capturing the output and RC
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version 2.2.0 \
-    -r 4.12.15 \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
+    -r "${DEFAULT_TEST_RELEASE}" \
     --du-profile \
-    --acm-version 99.99.99 \
+    --acm-version "${DEFAULT_TEST_UNAVAILABLE_VERSION}" \
     >& command-output.txt
 rc=$?
 
@@ -21,7 +23,7 @@ if [ "${rc}" -eq 0 ]; then
 fi
 
 # Check for expected error message
-if ! grep -q 'advanced-cluster-management version 99.99.99 not found in channel' command-output.txt || \
+if ! grep -q "advanced-cluster-management version ${DEFAULT_TEST_UNAVAILABLE_VERSION} not found in channel" command-output.txt || \
     ! grep -q 'Version checks failed for 1 operator' command-output.txt ; then
     echo "Expected error message not found in command output."
     exit 1

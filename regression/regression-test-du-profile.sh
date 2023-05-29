@@ -3,16 +3,16 @@
 # Runs invalid parameter handling tests
 #
 
-source /usr/local/bin/regression-suite-functions.sh
+source /usr/local/bin/regression-suite-common.sh
 
 # Run the command, capturing the output and RC
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version 2.2.0 \
-    -r 4.12.15 \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
+    -r "${DEFAULT_TEST_RELEASE}" \
     --du-profile \
-    --acm-version 2.7.0 \
+    --acm-version "${DEFAULT_TEST_ACM_RELEASE}" \
     >& command-output.txt
 rc=$?
 
@@ -37,9 +37,9 @@ kind: ImageSetConfiguration
 mirror:
   platform:
     channels:
-    - name: stable-4.12
-      minVersion: 4.12.15
-      maxVersion: 4.12.15
+    - name: stable-${DEFAULT_TEST_RELEASE_Y}
+      minVersion: ${DEFAULT_TEST_RELEASE}
+      maxVersion: ${DEFAULT_TEST_RELEASE}
   additionalImages:
 #
 # Example operators specification:
@@ -58,18 +58,18 @@ mirror:
 #          channels:
 #            - name: 'stable'
   operators:
-    - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.12
+    - catalog: registry.redhat.io/redhat/redhat-operator-index:v${DEFAULT_TEST_RELEASE_Y}
       packages:
         - name: multicluster-engine
           channels:
-            - name: 'stable-2.2'
-              minVersion: 2.2.0
-              maxVersion: 2.2.0
+            - name: 'stable-${DEFAULT_TEST_MCE_RELEASE_Y}'
+              minVersion: ${DEFAULT_TEST_MCE_RELEASE}
+              maxVersion: ${DEFAULT_TEST_MCE_RELEASE}
         - name: advanced-cluster-management
           channels:
-            - name: 'release-2.7'
-              minVersion: 2.7.0
-              maxVersion: 2.7.0
+            - name: 'release-${DEFAULT_TEST_ACM_RELEASE_Y}'
+              minVersion: ${DEFAULT_TEST_ACM_RELEASE}
+              maxVersion: ${DEFAULT_TEST_ACM_RELEASE}
         - name: local-storage-operator
           channels:
             - name: 'stable'
@@ -84,14 +84,14 @@ mirror:
             - name: 'stable'
         - name: lvms-operator
           channels:
-            - name: 'stable-4.12'
+            - name: 'stable-${DEFAULT_TEST_RELEASE_Y}'
         - name: amq7-interconnect-operator
           channels:
             - name: '1.10.x'
         - name: bare-metal-event-relay
           channels:
             - name: 'stable'
-    - catalog: registry.redhat.io/redhat/certified-operator-index:v4.12
+    - catalog: registry.redhat.io/redhat/certified-operator-index:v${DEFAULT_TEST_RELEASE_Y}
       packages:
         - name: sriov-fec
           channels:
