@@ -18,12 +18,14 @@ rc=$?
 
 # We expect this command to return a non-zero status
 if [ "${rc}" -eq 0 ]; then
+    cat command-output.txt
     echo "Expected a non-zero value, but got rc=${rc}"
     exit 1
 fi
 
 # Check for expected error message
 if ! grep -q "Error: Invalid acm-version specified. X.Y.Z format expected: ${DEFAULT_TEST_ACM_BAD_VERSION_FORMAT}" command-output.txt ; then
+    cat command-output.txt
     echo "Expected error message not found in command output."
     exit 1
 fi

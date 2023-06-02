@@ -39,6 +39,7 @@ function separator {
 longopts=(
     "help"
     "folder:"
+    "test:"
 )
 
 longopts_str=$(IFS=,; echo "${longopts[*]}")
@@ -50,10 +51,23 @@ fi
 
 eval set -- "${OPTS}"
 
+declare -a RUN_TESTS=()
+
 while :; do
     case "$1" in
         -f|--folder)
             FOLDER="${2}"
+            shift 2
+            ;;
+        --test)
+            if [ -f "${TESTDIR}/regression-test-${2}.sh" ]; then
+                RUN_TESTS+=("${TESTDIR}/regression-test-${2}.sh")
+            elif [ -f "${TESTDIR}/${2}" ]; then
+                RUN_TESTS+=("${TESTDIR}/${2}")
+            else
+                echo "Could not find test: ${2}" >&1
+                exit 1
+            fi
             shift 2
             ;;
         --)
@@ -80,7 +94,11 @@ fi
 # Run the regression tests
 declare -A results
 
-for testscript in "${TESTDIR}"/regression-test-*.sh; do
+if [ "${#RUN_TESTS[@]}" -eq 0 ]; then
+    RUN_TESTS=("${TESTDIR}"/regression-test-*.sh)
+fi
+
+for testscript in "${RUN_TESTS[@]}"; do
     if ! mkdir "${TESTFOLDER}" ; then
         echo "Unable to create ${TESTFOLDER}" >&2
         exit 1

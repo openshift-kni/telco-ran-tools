@@ -17,12 +17,14 @@ rc=$?
 
 # We expect this command to return a non-zero status
 if [ "${rc}" -eq 0 ]; then
+    cat command-output.txt
     echo "Expected a non-zero value, but got rc=${rc}"
     exit 1
 fi
 
 # Check for expected error message
 if ! grep -q 'Error: unknown flag: --not-a-valid-option' command-output.txt ; then
+    cat command-output.txt
     echo "Expected error message not found in command output."
     exit 1
 fi

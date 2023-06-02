@@ -45,6 +45,9 @@ const MaxRequeues = 3
 // TestMode indicates whether to create a dummy tarball rather than download the image.
 var TestMode = false
 
+// ImageFilters is a list of regexp patterns to apply to the mapping.txt file when downloading.
+var ImageFilters []*regexp.Regexp
+
 // splitVersion will split a version string into an X.Y string and a Z string.
 func splitVersion(version string) (xy, z string) {
 	if version != "" {
@@ -114,6 +117,40 @@ func deprecatedHubVersionToAcmMce(hubVersion string) (acmVersion, mceVersion str
 	return
 }
 
+// ImageFilterPatterns values.
+type ImageFilterPatterns struct {
+	Patterns []string `yaml:"patterns,omitempty"`
+}
+
+// populateImageFilters parses the filter file to generate a list of regexp patterns.
+func populateImageFilters(filterFile string) error {
+	yfile, err := os.ReadFile(filterFile)
+	if err != nil {
+		return err
+	}
+
+	var data ImageFilterPatterns
+
+	err = yaml.Unmarshal(yfile, &data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing filter file: %s\n", filterFile)
+		return err
+	}
+
+	for _, pattern := range data.Patterns {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: Failed while parsing filter file: %s\n", filterFile)
+			return err
+		}
+
+		fmt.Fprintf(os.Stdout, "Adding image filter pattern: %s\n", pattern)
+		ImageFilters = append(ImageFilters, re)
+	}
+
+	return nil
+}
+
 // downloadCmd represents the download command.
 var downloadCmd = &cobra.Command{
 	Use:   "download",
@@ -134,6 +171,7 @@ var downloadCmd = &cobra.Command{
 		acmVersion, _ := cmd.Flags().GetString("acm-version")
 		mceVersion, _ := cmd.Flags().GetString("mce-version")
 		TestMode, _ = cmd.Flags().GetBool("testmode")
+		filterFile, _ := cmd.Flags().GetString("filter")
 
 		// Validate cmdline parameters
 		if len(args) > 0 {
@@ -174,6 +212,14 @@ var downloadCmd = &cobra.Command{
 		if acmVersion != "" {
 			if !versionRE.MatchString(acmVersion) {
 				return fmt.Errorf("Invalid acm-version specified. X.Y.Z format expected: %s", acmVersion)
+			}
+		}
+
+		if filterFile != "" {
+			// Read patterns from file
+			err := populateImageFilters(filterFile)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -219,6 +265,7 @@ func init() {
 	downloadCmd.Flags().StringP("mce-version", "", "", "MultiCluster Engine operator version, in X.Y.Z format")
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
 	downloadCmd.Flags().Bool("testmode", false, "Create dummy image files rather than download")
+	downloadCmd.Flags().StringP("filter", "", "", "File with list of patterns to use for filtering images by name or tag")
 	rootCmd.AddCommand(downloadCmd)
 }
 
@@ -422,7 +469,7 @@ func imageDownload(workerID int, image ImageMapping, folder string) error {
 	artifactTar := image.Artifact + ".tgz"
 
 	if TestMode {
-		fmt.Fprintf(os.Stdout, "TestMode: Creating dummy image file: %s", artifactTar)
+		fmt.Fprintf(os.Stdout, "TestMode: Creating dummy image file: %s\n", artifactTar)
 
 		time.Sleep(time.Second * 1) // Sleep 1 second before creating file
 
@@ -641,6 +688,78 @@ func saveToImagesFile(image, imageMapping string, aiImages []string, aiImagesFil
 	}
 }
 
+// filterImage checks an image name and tag against the compiled filter patterns,
+// returning true if an image should be ignored.
+func filterImage(line, image, imageMapping string) bool {
+	for _, re := range ImageFilters {
+		if re.MatchString(image) {
+			fmt.Fprintf(os.Stdout, "Skipping image due to filter (%s): Matched image name: %s\n", re.String(), line)
+			return true
+		}
+		if re.MatchString(imageMapping) {
+			fmt.Fprintf(os.Stdout, "Skipping image due to filter (%s): Matched image tag: %s\n", re.String(), line)
+			return true
+		}
+	}
+
+	return false
+}
+
+// parseMappingFile will parse the mapping.txt file returned by the oc-mirror command, returning
+// the ImageMapping list of images to be downloaded.
+func parseMappingFile(mappingFile, ignoredImagesFile *os.File) (images []ImageMapping) {
+	fileScanner := bufio.NewScanner(mappingFile)
+	fileScanner.Split(bufio.ScanLines)
+
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		splittedLine := strings.Split(line, "=")
+		image := splittedLine[0]
+		imageMapping := splittedLine[1]
+		splittedImage := strings.Split(image, "/")
+		artifact := splittedImage[len(splittedImage)-1]
+		artifact = strings.Replace(artifact, ":", "_", 1)
+
+		// Check image against filters before adding to list
+		if !filterImage(line, image, imageMapping) {
+			images = append(images, ImageMapping{image, imageMapping, artifact})
+		} else {
+			writeImageToFile(ignoredImagesFile, line)
+		}
+	}
+
+	return images
+}
+
+// handleStaleFiles compares the existing tar files against the ImageMapping list to determine
+// whether there are stale files, deleting any that are found.
+func handleStaleFiles(folder string, images []ImageMapping) error {
+	expectedTarfiles := map[string]bool{}
+	for _, image := range images {
+		expectedTarfiles[image.Artifact+".tgz"] = true
+	}
+
+	files, err := os.ReadDir(folder)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to readdir: %s\n", folder)
+		return err
+	}
+
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".tgz") && !expectedTarfiles[file.Name()] {
+			fmt.Printf("Deleting stale image: %s\n", file.Name())
+			fpath := path.Join(folder, file.Name())
+			err = os.Remove(fpath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to delete %s:\n", fpath)
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
@@ -721,45 +840,19 @@ func download(folder, release, url string,
 	}
 	defer ocpImagesFile.Close()
 
-	fileScanner := bufio.NewScanner(mappingFile)
-	fileScanner.Split(bufio.ScanLines)
-
-	var images []ImageMapping
-
-	for fileScanner.Scan() {
-		line := fileScanner.Text()
-		splittedLine := strings.Split(line, "=")
-		image := splittedLine[0]
-		imageMapping := splittedLine[1]
-		splittedImage := strings.Split(image, "/")
-		artifact := splittedImage[len(splittedImage)-1]
-		artifact = strings.Replace(artifact, ":", "_", 1)
-
-		images = append(images, ImageMapping{image, imageMapping, artifact})
+	ignoredImagesFile, err := os.OpenFile(path.Join(folder, "ignored-images.txt"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: unable to open ignored-images.txt file:\n")
+		return err
 	}
+	defer ignoredImagesFile.Close()
+
+	images := parseMappingFile(mappingFile, ignoredImagesFile)
 
 	if rmStale {
-		expectedTarfiles := map[string]bool{}
-		for _, image := range images {
-			expectedTarfiles[image.Artifact+".tgz"] = true
-		}
-
-		files, err := os.ReadDir(folder)
+		err = handleStaleFiles(folder, images)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to readdir: %s\n", folder)
 			return err
-		}
-
-		for _, file := range files {
-			if strings.HasSuffix(file.Name(), ".tgz") && !expectedTarfiles[file.Name()] {
-				fmt.Printf("Deleting stale image: %s\n", file.Name())
-				fpath := path.Join(folder, file.Name())
-				err = os.Remove(fpath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Unable to delete %s:\n", fpath)
-					return err
-				}
-			}
 		}
 	}
 
