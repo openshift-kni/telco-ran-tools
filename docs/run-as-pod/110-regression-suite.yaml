@@ -1,0 +1,35 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: telco-ran-tools-regression
+  namespace: telco-ran-tools
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      name: telco-ran-tools-regression
+      namespace: telco-ran-tools
+    spec:
+      containers:
+      - name: telco-ran-tools-regression
+        image: quay.io/openshift-kni/telco-ran-tools:latest
+        #
+        # Run regression suite
+        #
+        command: ["regression-suite.sh"]
+        tty: true
+        volumeMounts:
+        # Mount the pull-secrets in the location referenced by oc-mirror
+        - name: pull-secret
+          mountPath: /root/.docker/config.json
+      hostNetwork: true
+      restartPolicy: Never
+      securityContext: {}
+      serviceAccountName: telco-ran-tools-user
+      volumes:
+        # Use the pull-secrets from the SNO
+        - name: pull-secret
+          hostPath:
+            path: /var/lib/kubelet/config.json
+            type: File

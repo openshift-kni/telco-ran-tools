@@ -1,0 +1,73 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: telco-ran-tools-download
+  namespace: telco-ran-tools
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      name: telco-ran-tools-download
+      namespace: telco-ran-tools
+    spec:
+      containers:
+      - name: telco-ran-tools-download
+        image: quay.io/openshift-kni/telco-ran-tools:latest
+        #
+        # Call factory-precaching-cli with desired options:
+        # - To minimize CPU, use "--parallel 1" to run with a single worker
+        # - The "--skip-imageset" option is used in conjunction with the predefined
+        #   imageset.yaml from the prestaging-data configmap
+        # - The "--filter" option is used in conjunction with the set of image filter
+        #   patterns defined in the prestaging-data configmap
+        #
+        command: ["factory-precaching-cli", "download",
+                    "--folder", "/prestaging",
+                    "--filter", "/prestaging/image-filters.yaml",
+                    "--release", "4.12.9",
+                    "--du-profile",
+                    "--mce-version", "2.2.3",
+                    "--acm-version", "2.7.3",
+                    "--rm-stale",
+                    "--parallel", "80",
+                    "--skip-imageset"
+                 ]
+        securityContext:
+          runAsUser: 0
+        tty: true
+        volumeMounts:
+        # Mount the pull-secrets in the location referenced by oc-mirror
+        - name: pull-secret
+          mountPath: /root/.docker/config.json
+        # Mount the data partition
+        - name: storage
+          mountPath: /prestaging
+        # Mount the imageset.yaml from the configmap
+        # (must be located in the path specified by the --folder option and named imageset.yaml)
+        - name: prestaging-data-volume
+          mountPath: /prestaging/imageset.yaml
+          subPath: imageset.yaml
+        # Mount the image-filters.yaml from the configmap
+        # (path isn't important, as long as it matches the --filter option specified)
+        - name: prestaging-data-volume
+          mountPath: /prestaging/image-filters.yaml
+          subPath: image-filters.yaml
+      hostNetwork: true
+      restartPolicy: Never
+      securityContext: {}
+      serviceAccountName: telco-ran-tools-user
+      volumes:
+        # Use the pull-secrets from the SNO
+        - name: pull-secret
+          hostPath:
+            path: /var/lib/kubelet/config.json
+            type: File
+        # Access the data partition
+        - name: storage
+          persistentVolumeClaim:
+            claimName: telco-ran-tools-storage-pvc
+        # Access the prestaging-data configmap
+        - name: prestaging-data-volume
+          configMap:
+            name: prestaging-data

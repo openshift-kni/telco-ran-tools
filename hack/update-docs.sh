@@ -15,6 +15,9 @@ WORKDIR=$(mktemp --tmpdir -d doc-update.XXXX)
 
 REPODIR=$(readlink -f "$(dirname $0)/..")
 
+#
+# Manage ztp-precaching.md
+#
 BOOT_IGN="${REPODIR}/docs/resources/boot-beauty.ign"
 DISCOVERY_IGN="${REPODIR}/docs/resources/discovery-beauty.ign"
 
@@ -65,3 +68,38 @@ awk \
 if ! cmp -s "${TMP_ZTP_PRECACHING}.awk" "${ZTP_PRECACHING}"; then
     mv "${TMP_ZTP_PRECACHING}.awk" "${ZTP_PRECACHING}"
 fi
+
+#
+# Manage run-as-pod/README.md
+#
+RUN_AS_POD_DIR="${REPODIR}/docs/run-as-pod"
+POD_DOC="${RUN_AS_POD_DIR}/README.md"
+TMP_POD_DOC="${WORKDIR}/README.md"
+
+echo "Updating ${POD_DOC}"
+
+for yfile in "${RUN_AS_POD_DIR}"/*.yaml; do
+    title=$(basename ${yfile})
+    if ! grep -q "yaml title=${title}" "${POD_DOC}"; then
+        continue
+    fi
+
+    echo "Processing ${title}"
+
+    # shellcheck disable=SC2016
+    sed -e '/```yaml title='"${title}"'/,/```/c```yaml title='"${title}"'\ninsert-yaml-file-here\n```' \
+        "${POD_DOC}" > "${TMP_POD_DOC}.sed"
+
+    awk \
+        -v yaml_override="$(sed 's/\\/\\\\/g' ${yfile})" \
+        '{
+            sub(/insert-yaml-file-here/,yaml_override)
+            print
+        }' \
+        "${TMP_POD_DOC}.sed" > "${TMP_POD_DOC}.awk"
+
+    if ! cmp -s "${TMP_POD_DOC}.awk" "${POD_DOC}"; then
+        mv "${TMP_POD_DOC}.awk" "${POD_DOC}"
+    fi
+done
+

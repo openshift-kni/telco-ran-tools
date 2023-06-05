@@ -1,0 +1,53 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: telco-ran-tools-download
+  namespace: telco-ran-tools
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      name: telco-ran-tools-download
+      namespace: telco-ran-tools
+    spec:
+      containers:
+      - name: telco-ran-tools-download
+        image: quay.io/openshift-kni/telco-ran-tools:latest
+        #
+        # Call factory-precaching-cli with desired options:
+        # - To minimize CPU, use "--parallel 1" to run with a single worker
+        #
+        command: ["factory-precaching-cli", "download",
+                    "-f", "/prestaging",
+                    "-r", "4.12.5",
+                    "--du-profile",
+                    "--mce-version", "2.2.0",
+                    "--acm-version", "2.7.0",
+                    "--rm-stale",
+                    "--parallel", "1"
+                 ]
+        securityContext:
+          runAsUser: 0
+        tty: true
+        volumeMounts:
+        # Mount the pull-secrets in the location referenced by oc-mirror
+        - name: pull-secret
+          mountPath: /root/.docker/config.json
+        # Mount the data partition
+        - name: storage
+          mountPath: /prestaging
+      hostNetwork: true
+      restartPolicy: Never
+      securityContext: {}
+      serviceAccountName: telco-ran-tools-user
+      volumes:
+        # Use the pull-secrets from the SNO
+        - name: pull-secret
+          hostPath:
+            path: /var/lib/kubelet/config.json
+            type: File
+        # Access the data partition
+        - name: storage
+          persistentVolumeClaim:
+            claimName: telco-ran-tools-storage-pvc
