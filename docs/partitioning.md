@@ -89,7 +89,7 @@ Storing signatures
 ```
 
 ``` console
-[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli -v
+[root@snonode /]# podman run --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli -v
 factory-precaching-cli version 20221018.120852+main.feecf17
 ```
 
@@ -106,7 +106,7 @@ Finally, we need to be sure that the disk is big enough to install OpenShift and
 Let's start with the partitioning, for that we will use the partition argument from the factory-cli. See here all the options we have:
 
 ``` console
-[root@snonode /]# podman run quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition --help
+[root@snonode /]# podman run --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition --help
 Partitions and formats a disk
 
 Usage:
@@ -115,6 +115,8 @@ Usage:
 Flags:
   -d, --device string   Device to be partitioned
   -h, --help            help for partition
+  -l, --label string    Partition label (default "data")
+  -n, --num int         Partition number (default 1)
   -s, --size int        Partition size in GB (default 100)
   -v, --version         version for partition
 ```
@@ -145,7 +147,9 @@ Also, it is suggested to erase filesystem, raid or partition-table signatures fr
 
 ### Create the partition ###
 
-Now that we have a device ready, we are going to create a single partition and a GPT partition table. This partition is going to be automatically labeled as “data” and created at the end of the device otherwise the partition will be overridden by the coreos-installer.
+Now that we have a device ready, we are going to create a single partition and a GPT partition table. This partition is going to be automatically labeled as “data” by default and created at the end of the device.
+Otherwise the partition will be overridden by the coreos-installer. A custom partition label can, however, be specified using the `--label` option. This custom partition label will also need to be specified as arguments
+to the `--extract-ai.sh` and `--extract-ocp.sh` utilities for installation, as described in the [ZTP precahcing](./ztp-precaching.md) doc.
 
 > :exclamation: The coreos-installer requires the partition to be created at the end of the device and to be labeled as
   "data". Both requirements are necessary to save the partition when writing the RHCOS image to disk.
@@ -155,7 +159,7 @@ that the process can be executed inside the container. Finally, notice that the 
 expect to precache also the day-2 operators required for the DU profile.
 
 ``` console
-[root@snonode /]# podman run -v /dev:/dev --privileged -it --rm  quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition -d /dev/nvme0n1 -s 250
+[root@snonode /]# podman run -v /dev:/dev --privileged --rm  quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli partition -d /dev/nvme0n1 -s 250
 Partition /dev/nvme0n1p1 is being formatted
 
 [root@snonode /]# lsblk

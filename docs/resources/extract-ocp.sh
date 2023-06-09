@@ -36,6 +36,21 @@ function cleanup {
 trap cleanup EXIT
 
 #
+# usage:
+#
+function usage {
+    cat <<EOF
+Usage: ${PROG} [ --label <partition-label> ]
+
+Parameters:
+    --label <partition-label>      Label for partition that holds the downloaded images and associated files.
+                                   Default: data
+
+EOF
+    exit 1
+}
+
+#
 # mount_data:
 #
 function mount_data {
@@ -180,6 +195,43 @@ function retry_images {
 }
 
 if [[ "${BASH_SOURCE[0]}" = "${0}" ]]; then
+    #
+    # Process cmdline arguments
+    #
+
+    longopts=(
+        "help"
+        "label:"
+    )
+
+    longopts_str=$(IFS=,; echo "${longopts[*]}")
+
+    if ! OPTS=$(getopt -o "hl:" --long "${longopts_str}" --name "$0" -- "$@"); then
+        usage
+        exit 1
+    fi
+
+    eval set -- "${OPTS}"
+
+    while :; do
+        case "$1" in
+            -l|--label)
+                FS="/dev/disk/by-partlabel/${2}"
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -h|--help)
+                usage
+                ;;
+            *)
+                usage
+                ;;
+        esac
+    done
+
     failed_copies=() # Array that will include all the images that failed to be pulled
 
     mount_data
