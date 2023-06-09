@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
+	"regexp"
 
 	"github.com/spf13/cobra"
 )
@@ -31,8 +31,10 @@ var partitionCmd = &cobra.Command{
 	Short: "Partitions and formats a disk",
 	Run: func(cmd *cobra.Command, args []string) {
 		device, _ := cmd.Flags().GetString("device")
+		label, _ := cmd.Flags().GetString("label")
+		num, _ := cmd.Flags().GetInt("num")
 		size, _ := cmd.Flags().GetInt("size")
-		partition(device, size)
+		partition(device, label, num, size)
 	},
 	Version: Version,
 }
@@ -41,22 +43,26 @@ var partitionCmd = &cobra.Command{
 func init() {
 	partitionCmd.Flags().StringP("device", "d", "", "Device to be partitioned")
 	partitionCmd.MarkFlagRequired("device")
+	partitionCmd.Flags().StringP("label", "l", "data", "Partition label")
+	partitionCmd.Flags().IntP("num", "n", 1, "Partition number")
 	partitionCmd.Flags().IntP("size", "s", 100, "Partition size in GB")
 	rootCmd.AddCommand(partitionCmd)
 
 }
 
-func generatePartitionCommand(device string, size int) *exec.Cmd {
-	return exec.Command("sgdisk", "-n", fmt.Sprintf("1:-%dGiB:0", size), device, "-g", "-c:1:data")
+func generatePartitionCommand(device, label string, num, size int) *exec.Cmd {
+	return exec.Command("sgdisk", "-n", fmt.Sprintf("%d:-%dGiB:0", num, size), device, "-g", fmt.Sprintf("-c:%d:%s", num, label))
 }
 
-func generateFormatCommand(device string) *exec.Cmd {
-	part := device + "1"
+func generateFormatCommand(device string, num int) *exec.Cmd {
+	var part string
+	pattern := regexp.MustCompile(`[0-9]$`)
 
-	// if device ends with a number a 'p' is included in the partition name
-	_, err := strconv.Atoi(device[len(device)-1:])
-	if err == nil {
-		part = device + "p1"
+	if pattern.MatchString(device) {
+		// if device ends with a number a 'p' is included in the partition name
+		part = fmt.Sprintf("%sp%d", device, num)
+	} else {
+		part = fmt.Sprintf("%s%d", device, num)
 	}
 
 	fmt.Printf("Partition %s is being formatted\n", part)
@@ -64,15 +70,15 @@ func generateFormatCommand(device string) *exec.Cmd {
 
 }
 
-func partition(device string, size int) {
-	cmd := generatePartitionCommand(device, size)
+func partition(device, label string, num, size int) {
+	cmd := generatePartitionCommand(device, label, num, size)
 	stdout, err := executeCommand(cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to partition device: %s\n", string(stdout))
 		os.Exit(1)
 	}
 
-	cmd = generateFormatCommand(device)
+	cmd = generateFormatCommand(device, num)
 	stdout, err = executeCommand(cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to format device: %s\n", string(stdout))
