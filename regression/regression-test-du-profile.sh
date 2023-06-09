@@ -82,15 +82,6 @@ mirror:
         - name: cluster-logging
           channels:
             - name: 'stable'
-        - name: lvms-operator
-          channels:
-            - name: 'stable-${DEFAULT_TEST_RELEASE_Y}'
-        - name: amq7-interconnect-operator
-          channels:
-            - name: '1.10.x'
-        - name: bare-metal-event-relay
-          channels:
-            - name: 'stable'
     - catalog: registry.redhat.io/redhat/certified-operator-index:v${DEFAULT_TEST_RELEASE_Y}
       packages:
         - name: sriov-fec

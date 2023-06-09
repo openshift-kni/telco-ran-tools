@@ -424,7 +424,7 @@ func imageDownload(workerID int, image ImageMapping, folder string) error {
 	if TestMode {
 		fmt.Fprintf(os.Stdout, "TestMode: Creating dummy image file: %s", artifactTar)
 
-		time.Sleep(time.Second * 3) // Sleep 3 seconds before creating file
+		time.Sleep(time.Second * 1) // Sleep 1 second before creating file
 
 		out, err := os.OpenFile(path.Join(folder, artifactTar), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 		if err != nil {

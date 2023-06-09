@@ -82,28 +82,6 @@ mirror:
         - name: cluster-logging
           channels:
             - name: 'stable'
-  {{- if VersionAtLeast .Version "4.12" }}
-        - name: lvms-operator
-          channels:
-            - name: 'stable-{{ .Channel }}'
-  {{- else if VersionAtLeast .Version "4.10" }}
-        - name: odf-lvm-operator
-          channels:
-            - name: 'stable-{{ .Channel }}'
-  {{- end }}
-  {{- if VersionAtLeast .Version "4.10" }}
-        - name: amq7-interconnect-operator
-          channels:
-            - name: '1.10.x'
-        - name: bare-metal-event-relay
-          channels:
-            - name: 'stable'
-  {{- end }}
-  {{- if VersionAtMost .Version "4.10" }}
-        - name: performance-addon-operator
-          channels:
-            - name: '{{ .Channel }}'
-  {{- end }}
     - catalog: registry.redhat.io/redhat/certified-operator-index:v{{ .Channel }}
       packages:
         - name: sriov-fec
