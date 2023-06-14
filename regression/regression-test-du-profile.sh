@@ -25,6 +25,7 @@ fi
 
 # Validate imageset.yaml
 if [ ! -f "${TESTFOLDER}/imageset.yaml" ]; then
+    cat command-output.txt
     echo "Could not find ${TESTFOLDER}/imageset.yaml"
     exit 1
 fi

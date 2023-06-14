@@ -25,6 +25,7 @@ fi
 # Verify content of imageset, and that it is the only file in the TESTFOLDER directory
 
 if [ ! -f "${TESTFOLDER}/imageset.yaml" ]; then
+    cat command-output.txt
     echo "Could not find ${TESTFOLDER}/imageset.yaml"
     exit 1
 fi

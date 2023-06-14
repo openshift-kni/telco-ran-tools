@@ -1,18 +1,23 @@
 #!/bin/bash
 #
-# Runs invalid parameter handling tests
+# Runs image filter file test, with bad yaml
 #
 
 source /usr/local/bin/regression-suite-common.sh
+
+cat <<EOF > image-filter.yaml
+---
+patterns:
+  - [bad-yaml
+EOF
 
 # Run the command, capturing the output and RC
 factory-precaching-cli download \
     --testmode \
     -f "${TESTFOLDER}" \
-    --mce-version "${DEFAULT_TEST_UNAVAILABLE_VERSION}" \
+    --mce-version "${DEFAULT_TEST_MCE_RELEASE}" \
     -r "${DEFAULT_TEST_RELEASE}" \
-    --du-profile \
-    --acm-version "${DEFAULT_TEST_UNAVAILABLE_VERSION}" \
+    --filter image-filter.yaml \
     >& command-output.txt
 rc=$?
 
@@ -24,9 +29,7 @@ if [ "${rc}" -eq 0 ]; then
 fi
 
 # Check for expected error message
-if ! grep -q "multicluster-engine version ${DEFAULT_TEST_UNAVAILABLE_VERSION} not found in channel" command-output.txt || \
-    ! grep -q "advanced-cluster-management version ${DEFAULT_TEST_UNAVAILABLE_VERSION} not found in channel" command-output.txt || \
-    ! grep -q 'Version checks failed for 2 operator' command-output.txt ; then
+if ! grep -q "Error: yaml: line 3: did not find expected" command-output.txt ; then
     cat command-output.txt
     echo "Expected error message not found in command output."
     exit 1

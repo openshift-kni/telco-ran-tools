@@ -8,6 +8,7 @@
     - [Parallel Downloads](#parallel-downloads)
     - [Precaching an OCP release](#precaching-an-ocp-release)
     - [Precaching the telco 5G RAN operators](#precaching-the-telco-5g-ran-operators)
+    - [Image Filtering](#image-filtering)
     - [Custom precaching for disconnected environments](#custom-precaching-for-disconnected-environments)
 
 ## Background ##
@@ -93,6 +94,7 @@ Flags:
       --acm-version string   Advanced Cluster Management operator version, in X.Y.Z format
   -i, --ai-img strings       Assisted Installer Image(s)
       --du-profile           Pre-cache telco 5G DU operators
+      --filter string        File with list of patterns to use for filtering images by name or tag
   -f, --folder string        Folder to download artifacts
       --generate-imageset    Generate imageset.yaml only
   -h, --help                 help for download
@@ -103,7 +105,8 @@ Flags:
   -s, --rm-stale             Remove stale images
   -u, --rootfs-url string    rootFS URL
       --skip-imageset        Skip imageset.yaml generation
-  -v, --version              version for download
+      --testmode             Create dummy image files rather than download
+  -v, --version              version for download```
 ```
 
 ### Precaching an OCP release ###
@@ -236,6 +239,73 @@ Time for Download:                  9m43s
 ```
 
 >:exclamation: Notice that the number of containers precached highly increases because of the operators included in the DU profile. In the previous example we moved from 176 container images to 376.
+
+### Image Filtering ###
+
+The factory-precaching-cli tool provides a feature for filtering images from the download that are not needed for a given configuration. The `mapping.txt` returned by the `oc-mirror` command will
+include, for example, all images in the OCP platform for the specified release. However, this image list includes those required for systems such as vsphere and azure, which may not be needed. In
+order to filter these images before starting the download, a filter file with a list of [regular expression patterns](https://pkg.go.dev/regexp/syntax) can be provided as input, which will be matched
+against either the image name or tag from the `mapping.txt` file. A list of all images that are skipped due to matching a filter pattern is recorded in the `ignored-images.txt` output file.
+
+```yaml
+---
+patterns:
+  - alibaba
+  - aws
+  - azure
+  - cluster-samples-operator
+  - gcp
+  - ibm
+  - kubevirt
+  - libvirt
+  - manila
+  - nfs
+  - nutanix
+  - openstack
+  - ovirt
+  - sdn
+  - tests
+  - thanos
+  - vsphere
+```
+
+These patterns can be further refined with any standard golang-supported regular expressions, such as `\baws\b` to match word boundaries and avoid possible substring matches.
+
+The image filter file is passed to the factory-precaching-cli tool using the `--filter` option.
+
+```console
+# podman run -v ${PWD}/image-filters.yaml:/image-filters.yaml -v /mnt:/mnt -v /root/.docker:/root/.docker --privileged --rm \
+    quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli \
+    download -f /mnt -r 4.12.9 --mce-version 2.2.3 \
+    --filter /image-filters.yaml
+Adding image filter pattern: alibaba
+Adding image filter pattern: aws
+Adding image filter pattern: azure
+Adding image filter pattern: cluster-samples-operator
+Adding image filter pattern: gcp
+Adding image filter pattern: ibm
+Adding image filter pattern: kubevirt
+Adding image filter pattern: libvirt
+Adding image filter pattern: manila
+Adding image filter pattern: nfs
+Adding image filter pattern: nutanix
+Adding image filter pattern: openstack
+Adding image filter pattern: ovirt
+Adding image filter pattern: sdn
+Adding image filter pattern: tests
+Adding image filter pattern: thanos
+Adding image filter pattern: vsphere
+Generated /mnt/imageset.yaml
+Validating operator versions:
+Checking multicluster-engine version 2.2.3...
+Generating list of pre-cached artifacts...
+Skipping image due to filter (gcp): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:07aa2fa37fbee8270509d1705305eb001be90d49e66722e5725986b7e3706593=openshift/release:4.12.9-x86_64-gcp-cloud-controller-manager
+Skipping image due to filter (aws): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:b9f475ed07a1f36787fa869e002bc98782fac95eb68b4235f1d51432bedfe459=openshift/release:4.12.9-x86_64-aws-ebs-csi-driver-operator
+Skipping image due to filter (azure): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:59c7e61f132e4daeebaa198865b76e9f431ffabfc69578253067e2eb852d0f98=openshift/release:4.12.9-x86_64-azure-file-csi-driver-operator
+Skipping image due to filter (vsphere): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:e4c716fc238b3f7995a96a0241a7ca5ec3ea8cbe72457453a913007b599494b6=openshift/release:4.12.9-x86_64-vsphere-csi-driver
+Skipping image due to filter (ibm): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:5c5b0f2a4579b80a461e89fcd825782e60264a5e8c927bf040dd9abb01c09e5a=openshift/release:4.12.9-x86_64-ibm-vpc-block-csi-driver
+Skipping image due to filter (alibaba): Matched image tag: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ec94537189d47226bafb4b9e2baeb26840d9e34392b12e6b264593137139739c=openshift/release:4.12.9-x86_64-alibaba-cloud-controller-manager
+```
 
 ### Custom precaching for disconnected environments ###
 
