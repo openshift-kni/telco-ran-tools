@@ -200,11 +200,11 @@ Showing the content of the field in a prettier and cleaner way will help us to u
   scenario, we want to avoid that since we just loaded them into the local container storage. The decoded script can be
   found [here](./resources/agent-fix-bz1964591)
 
-> :exclamation Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do
+> :exclamation: Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do
   so by adding them into the [discovery-beauty ignition template](./resources/discovery-beauty.ign). Finally, include
   the modified ignition file into the siteConfig manifest in the expected format.
 
-``` { .json title=discovery-beauty.ign }
+``` json title=discovery-beauty.ign
 {
   "ignition": {
     "version": "3.1.0"
@@ -314,9 +314,9 @@ discovery.
   installed. Once done, images can be used locally instead of pulled down from a registry. The decoded script can be found
   [here](./resources/extract-ocp.sh)
 
-> :exclamation Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do so by adding them into the [boot-beauty ignition template](./resources/boot-beauty.ign). Finally, include the modified ignition file into the siteConfig manifest in the expected format.
+> :exclamation: Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do so by adding them into the [boot-beauty ignition template](./resources/boot-beauty.ign). Finally, include the modified ignition file into the siteConfig manifest in the expected format.
 
-``` { .json title=boot-beauty.ign }
+``` json title=boot-beauty.ign
 {
   "ignition": {
     "version": "3.1.0"

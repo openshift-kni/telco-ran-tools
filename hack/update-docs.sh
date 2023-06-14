@@ -30,7 +30,7 @@ done
 
 # Verify doc has expected data
 missing_tags=0
-for tag in '.json title=discovery-beauty.ign' '.json title=boot-beauty.ign' 'ignitionConfigOverride.*extract-ai' 'ignitionConfigOverride.*extract-ocp'; do
+for tag in 'json title=discovery-beauty.ign' 'json title=boot-beauty.ign' 'ignitionConfigOverride.*extract-ai' 'ignitionConfigOverride.*extract-ocp'; do
     if ! grep -q "${tag}" "${ZTP_PRECACHING}"; then
         echo "$(basename ${ZTP_PRECACHING}) missing required tag: ${tag}" >&2
         missing_tags=$((missing_tags+1))
@@ -44,8 +44,8 @@ fi
 echo "Updating ${ZTP_PRECACHING}"
 
 # shellcheck disable=SC2016
-sed -e '/``` { .json title=discovery-beauty.ign }/,/```/c``` { .json title=discovery-beauty.ign }\ninsert-discovery-beauty.ign-here\n```' \
-    -e '/``` { .json title=boot-beauty.ign }/,/```/c``` { .json title=boot-beauty.ign }\ninsert-boot-beauty.ign-here\n```' \
+sed -e '/``` json title=discovery-beauty.ign/,/```/c``` json title=discovery-beauty.ign\ninsert-discovery-beauty.ign-here\n```' \
+    -e '/``` json title=boot-beauty.ign/,/```/c``` json title=boot-beauty.ign\ninsert-boot-beauty.ign-here\n```' \
     "${ZTP_PRECACHING}" > "${TMP_ZTP_PRECACHING}.sed"
 
 awk \
