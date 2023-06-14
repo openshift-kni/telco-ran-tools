@@ -62,6 +62,7 @@ mirror:
       packages:
         - name: multicluster-engine
           channels:
+            - name: 'stable-2.3'
             - name: 'stable-${DEFAULT_TEST_MCE_RELEASE_Y}'
               minVersion: ${DEFAULT_TEST_MCE_RELEASE}
               maxVersion: ${DEFAULT_TEST_MCE_RELEASE}
