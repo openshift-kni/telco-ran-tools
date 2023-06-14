@@ -42,6 +42,12 @@ var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8)
 // MaxRequeues is the number of retries allowed for download reattempts.
 const MaxRequeues = 3
 
+// DefaultCatalogRedhatOperators is the default location of the redhat-operators catalog.
+const DefaultCatalogRedhatOperators = "registry.redhat.io/redhat/redhat-operator-index"
+
+// DefaultCatalogCertifiedOperators is the default location of the certified-operators catalog.
+const DefaultCatalogCertifiedOperators = "registry.redhat.io/redhat/certified-operator-index"
+
 // TestMode indicates whether to create a dummy tarball rather than download the image.
 var TestMode = false
 
@@ -172,6 +178,8 @@ var downloadCmd = &cobra.Command{
 		mceVersion, _ := cmd.Flags().GetString("mce-version")
 		TestMode, _ = cmd.Flags().GetBool("testmode")
 		filterFile, _ := cmd.Flags().GetString("filter")
+		catalogRedhatOperators, _ := cmd.Flags().GetString("catalog-redhat-operators")
+		catalogCertifiedOperators, _ := cmd.Flags().GetString("catalog-certified-operators")
 
 		// Validate cmdline parameters
 		if len(args) > 0 {
@@ -234,7 +242,9 @@ var downloadCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet, duProfile, skipImageSet, acmVersion, mceVersion, maxParallel)
+		err = download(folder, release, url, aiImages, additionalImages, rmStale, generateImageSet,
+			duProfile, skipImageSet, acmVersion, mceVersion, maxParallel,
+			catalogRedhatOperators, catalogCertifiedOperators)
 		if err != nil {
 			// Explicitly printing error here rather than returning err to avoid "usage" message in output
 			fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -266,19 +276,23 @@ func init() {
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
 	downloadCmd.Flags().Bool("testmode", false, "Create dummy image files rather than download")
 	downloadCmd.Flags().StringP("filter", "", "", "File with list of patterns to use for filtering images by name or tag")
+	downloadCmd.Flags().StringP("catalog-redhat-operators", "", "", "Override location and tag of redhat-operator-index catalog")
+	downloadCmd.Flags().StringP("catalog-certified-operators", "", "", "Override location and tag of certified-operator-index catalog")
 	rootCmd.AddCommand(downloadCmd)
 }
 
 // ImageSet contains data passed to imageset template.
 type ImageSet struct {
-	Channel          string
-	Version          string
-	AdditionalImages []string
-	DuProfile        bool
-	AcmChannel       string
-	AcmVersion       string
-	MceChannel       string
-	MceVersion       string
+	Channel                   string
+	Version                   string
+	AdditionalImages          []string
+	DuProfile                 bool
+	AcmChannel                string
+	AcmVersion                string
+	MceChannel                string
+	MceVersion                string
+	CatalogRedhatOperators    string
+	CatalogCertifiedOperators string
 }
 
 // ImageMapping contains data parsed from mapping file.
@@ -566,7 +580,11 @@ func imageDownloaderResults(wg *sync.WaitGroup, results <-chan DownloadResult, t
 	}
 }
 
-func templatizeImageset(release, folder string, aiImages, additionalImages []string, duProfile bool, acmVersion, mceVersion string) error {
+func templatizeImageset(
+	release, folder string,
+	aiImages, additionalImages []string,
+	duProfile bool,
+	acmVersion, mceVersion, catalogRedhatOperators, catalogCertifiedOperators string) error {
 	t, err := template.New("ImageSet").Funcs(template.FuncMap{
 		"VersionAtLeast": versionAtLeast,
 		"VersionAtMost":  versionAtMost,
@@ -586,8 +604,18 @@ func templatizeImageset(release, folder string, aiImages, additionalImages []str
 	acmChannel, _ := splitVersion(acmVersion)
 	mceChannel, _ := splitVersion(mceVersion)
 
+	catalogRedhatOperatorsLocation := catalogRedhatOperators
+	if catalogRedhatOperators == "" {
+		catalogRedhatOperatorsLocation = fmt.Sprintf("%s:v%s", DefaultCatalogRedhatOperators, channel)
+	}
+
+	catalogCertifiedOperatorsLocation := catalogCertifiedOperators
+	if catalogRedhatOperators == "" {
+		catalogCertifiedOperatorsLocation = fmt.Sprintf("%s:v%s", DefaultCatalogCertifiedOperators, channel)
+	}
+
 	images := append(aiImages, additionalImages...)
-	d := ImageSet{channel, release, images, duProfile, acmChannel, acmVersion, mceChannel, mceVersion}
+	d := ImageSet{channel, release, images, duProfile, acmChannel, acmVersion, mceChannel, mceVersion, catalogRedhatOperatorsLocation, catalogCertifiedOperatorsLocation}
 	err = t.Execute(f, d)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to execute template:\n")
@@ -764,7 +792,8 @@ func download(folder, release, url string,
 	aiImages, additionalImages []string,
 	rmStale, generateImageSet, duProfile, skipImageSet bool,
 	acmVersion, mceVersion string,
-	maxParallel int) error {
+	maxParallel int,
+	catalogRedhatOperators, catalogCertifiedOperators string) error {
 	tmpDir, err := os.MkdirTemp("", "fp-cli-")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: unable to create temporary directory:\n")
@@ -775,7 +804,7 @@ func download(folder, release, url string,
 	imagesetFile := path.Join(folder, "imageset.yaml")
 
 	if !skipImageSet {
-		err = templatizeImageset(release, folder, aiImages, additionalImages, duProfile, acmVersion, mceVersion)
+		err = templatizeImageset(release, folder, aiImages, additionalImages, duProfile, acmVersion, mceVersion, catalogRedhatOperators, catalogCertifiedOperators)
 		if err != nil {
 			return err
 		}

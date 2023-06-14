@@ -10,6 +10,7 @@
     - [Precaching the telco 5G RAN operators](#precaching-the-telco-5g-ran-operators)
     - [Image Filtering](#image-filtering)
     - [Custom precaching for disconnected environments](#custom-precaching-for-disconnected-environments)
+    - [Overriding Operator Catalogs](#overriding-operator-catalogs)
 
 ## Background ##
 
@@ -466,6 +467,26 @@ hand with RHCOS (based on RHEL too). Take that into account when mounting host f
     --img quay.io/alosadag/troubleshoot \
     --du-profile -s \
     --skip-imageset
+ 
+Generating list of pre-cached artifacts...
+...
+```
+
+### Overriding Operator Catalogs ###
+
+The user is able to override the default operator catalogs using the `--catalog-redhat-operators` and `--catalog-certified-operators` options, providing the full path to the corresponding catalog indexes.
+The values specified will replace the `redhat-operator-index` and `certified-operator-index` catalog values in the generated `imageset.yaml`. 
+
+In the previous example, we can use the `--catalog-redhat-operators` and `--catalog-certified-operators` options instead of `--generate-imageset` with manual modifications, assuming no other changes to the
+generated `imageset.yaml` are required.
+
+```console
+# podman run -v /mnt:/mnt -v /root/.docker:/root/.docker -v /etc/pki:/etc/pki --privileged --rm quay.io/openshift-kni/telco-ran-tools:latest -- \
+    factory-precaching-cli download -r 4.11.5 --acm-version 2.5.4 --mce-version 2.0.4 -f /mnt \
+    --img quay.io/alosadag/troubleshoot \
+    --du-profile -s \
+    --catalog-redhat-operators eko4.cloud.lab.eng.bos.redhat.com:8443/redhat/redhat-operator-index:v4.11 \
+    --catalog-certified-operators eko4.cloud.lab.eng.bos.redhat.com:8443/redhat/certified-operator-index:v4.11
  
 Generating list of pre-cached artifacts...
 ...

@@ -49,7 +49,7 @@ mirror:
 #          channels:
 #            - name: 'stable'
   operators:
-    - catalog: registry.redhat.io/redhat/redhat-operator-index:v{{ .Channel }}
+    - catalog: {{ .CatalogRedhatOperators }}
       packages:
         - name: multicluster-engine
           channels:
@@ -82,7 +82,7 @@ mirror:
         - name: cluster-logging
           channels:
             - name: 'stable'
-    - catalog: registry.redhat.io/redhat/certified-operator-index:v{{ .Channel }}
+    - catalog: {{ .CatalogCertifiedOperators }}
       packages:
         - name: sriov-fec
           channels:
