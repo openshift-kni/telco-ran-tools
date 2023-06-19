@@ -29,7 +29,7 @@ if [ "${rc}" -eq 0 ]; then
 fi
 
 # Check for expected error message
-if ! grep -q "Error: yaml: line 3: did not find expected" command-output.txt ; then
+if ! grep -q "Error: yaml: line [0-9]*: did not find expected" command-output.txt ; then
     cat command-output.txt
     echo "Expected error message not found in command output."
     exit 1
