@@ -43,6 +43,9 @@ var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8)
 // MaxRequeues is the number of retries allowed for download reattempts.
 const MaxRequeues = 3
 
+// TestMode indicates whether to create a dummy tarball rather than download the image.
+var TestMode = false
+
 // splitVersion will split a version string into an X.Y string and a Z string.
 func splitVersion(version string) (xy, z string) {
 	if version != "" {
@@ -131,6 +134,7 @@ var downloadCmd = &cobra.Command{
 		maxParallel, _ := cmd.Flags().GetInt("parallel")
 		acmVersion, _ := cmd.Flags().GetString("acm-version")
 		mceVersion, _ := cmd.Flags().GetString("mce-version")
+		TestMode, _ = cmd.Flags().GetBool("testmode")
 
 		// Validate cmdline parameters
 		if len(args) > 0 {
@@ -161,7 +165,7 @@ var downloadCmd = &cobra.Command{
 		}
 
 		if !versionRE.MatchString(mceVersion) {
-			return fmt.Errorf("Invalid mce-version specified. X.Y.Z format expected: %s", hubVersion)
+			return fmt.Errorf("Invalid mce-version specified. X.Y.Z format expected: %s", mceVersion)
 		}
 
 		if duProfile && acmVersion == "" {
@@ -170,7 +174,7 @@ var downloadCmd = &cobra.Command{
 
 		if acmVersion != "" {
 			if !versionRE.MatchString(acmVersion) {
-				return fmt.Errorf("Invalid acm-version specified. X.Y.Z format expected: %s", hubVersion)
+				return fmt.Errorf("Invalid acm-version specified. X.Y.Z format expected: %s", acmVersion)
 			}
 		}
 
@@ -215,6 +219,7 @@ func init() {
 	downloadCmd.Flags().StringP("acm-version", "", "", "Advanced Cluster Management operator version, in X.Y.Z format")
 	downloadCmd.Flags().StringP("mce-version", "", "", "MultiCluster Engine operator version, in X.Y.Z format")
 	downloadCmd.Flags().IntP("parallel", "p", DefaultParallelization, "Maximum parallel downloads")
+	downloadCmd.Flags().Bool("testmode", false, "Create dummy image files rather than download")
 	rootCmd.AddCommand(downloadCmd)
 }
 
@@ -407,6 +412,19 @@ func runOcMirrorCommand(tmpDir, folder string) error {
 // imageDownload handles the image download job.
 func imageDownload(workerID int, image ImageMapping, folder string) error {
 	artifactTar := image.Artifact + ".tgz"
+
+	if TestMode {
+		fmt.Fprintf(os.Stdout, "TestMode: Creating dummy image file: %s", artifactTar)
+
+		time.Sleep(time.Second * 3) // Sleep 3 seconds before creating file
+
+		out, err := os.OpenFile(path.Join(folder, artifactTar), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+		return nil
+	}
 
 	fmt.Fprintf(os.Stdout, "Downloading: %s\n", image.Image)
 
