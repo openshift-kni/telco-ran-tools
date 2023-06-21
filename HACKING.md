@@ -34,6 +34,8 @@ make update-resources
 
 The Makefile has variables to support building images for development:
 
+- RUNTIME - local container management too (defaults to podman)
+- DOCKERFILE - Name of Docker file for build (defaults to Dockerfile)
 - REPOOWNER - the registry in quay.io for the image (defaults to openshift-kni)
 - IMAGENAME - the image name (defaults to telco-ran-tools)
 - IMAGETAG - the image tag (defaults to latest)
@@ -42,6 +44,12 @@ To build the image, run the `image` make target, or run the `push` make target t
 
 ```bash
 make REPOOWNER=${USER} push
+```
+
+To build the image using the Dockerfile.dev file, which uses the publicly accessible fedora base image, run:
+
+```bash
+make REPOOWNER=${USER} DOCKERFILE=Dockerfile.dev push
 ```
 
 ## Regression testing

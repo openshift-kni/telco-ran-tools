@@ -1,5 +1,6 @@
 SHELL ?= /bin/bash
 RUNTIME ?= podman
+DOCKERFILE ?= Dockerfile
 REPOOWNER ?= openshift-kni
 IMAGENAME ?= telco-ran-tools
 IMAGETAG ?= latest
@@ -78,7 +79,7 @@ clean:
 .PHONY: image
 image:
 	@echo "building image"
-	$(RUNTIME) build -f Dockerfile -t quay.io/$(REPOOWNER)/$(IMAGENAME):$(IMAGETAG) .
+	$(RUNTIME) build -f $(DOCKERFILE) -t quay.io/$(REPOOWNER)/$(IMAGENAME):$(IMAGETAG) .
 
 .PHONY: push
 push: image
