@@ -1,0 +1,14 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: telco-ran-tools-storage-pvc
+  namespace: telco-ran-tools
+spec:
+  accessModes:
+  - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 250Gi
+  storageClassName: telco-ran-tools-storage-class

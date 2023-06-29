@@ -1,0 +1,19 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: telco-ran-tool-cluster-role
+rules:
+- apiGroups:
+  - security.openshift.io
+  # Use the custom SCC we've created
+  resourceNames:
+  - telco-ran-tools-scc
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
