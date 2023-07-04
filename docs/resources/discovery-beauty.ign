@@ -16,7 +16,7 @@
       {
         "overwrite": true,
         "path": "/usr/local/bin/extract-ai.sh",
-        "mode": 755,
+        "mode": 493,
         "user": {
           "name": "root"
         },
@@ -27,7 +27,7 @@
       {
         "overwrite": true,
         "path": "/usr/local/bin/agent-fix-bz1964591",
-        "mode": 755,
+        "mode": 493,
         "user": {
           "name": "root"
         },
