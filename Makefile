@@ -30,9 +30,9 @@ bashate: ## Run bashate
 .PHONY: update-resources
 update-resources: shellcheck bashate
 	@echo "Updating docs/resources/boot-beauty.ign"
-	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ocp.sh)\"#" docs/resources/boot-beauty.ign
+	@sed -i "/\"path\":.*extract-ocp/,/\"path\":/ s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-images.sh)\"#" docs/resources/boot-beauty.ign
 	@echo "Updating docs/resources/discovery-beauty.ign"
-	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ai.sh)\"#" docs/resources/discovery-beauty.ign
+	@sed -i "/\"path\":.*extract-ai/,/\"path\":/ s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-images.sh)\"#" docs/resources/discovery-beauty.ign
 	@hack/update-docs.sh
 
 .PHONY: check-git-tree

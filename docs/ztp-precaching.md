@@ -192,9 +192,9 @@ Showing the content of the field in a prettier and cleaner way will help us to u
   disk partition to be mounted in /var/mnt by the var-mnt unit. The precache-images service basically calls a script
   called `extract-ai.sh`. Notice that the precache-images must be executed before the `agent.service`, so it means that
   extracting the Assisted Installer (ai) images is done before the discovery stage starts.
-- The `extract-ai.sh` script basically uncompresses and loads the images required in this stage from the disk partition
+- The `extract-ai.sh` script uncompresses and loads the images required in this stage from the disk partition
   to the local container storage. Once done, images can be used locally instead of pulled down from a registry. The
-  decoded script can be found [here](./resources/extract-ai.sh)
+  decoded script can be found [here](./resources/extract-images.sh)
 
 > :exclamation: Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do
   so by adding them into the [discovery-beauty ignition template](./resources/discovery-beauty.ign). Finally, include
@@ -294,10 +294,10 @@ discovery.
   partition to be mounted in /var/mnt by the var-mnt unit. The precache-ocp service basically calls a script called
   `extract-ocp.sh`. Notice that the precache-ocp must be executed before the `machine-config-daemon-pull.service` and
   `nodeip-configuration.service`, so it means that extracting the images is done before the OCP installation starts.
-- The `extract-ocp.sh` script basically uncompresses and loads the images required in this stage from the disk partition
+- The `extract-ocp.sh` script uncompresses and loads the images required in this stage from the disk partition
   to the local container storage. Fundamentally there are OCP release images and operators if they were requested to be
   installed. Once done, images can be used locally instead of pulled down from a registry. The decoded script can be found
-  [here](./resources/extract-ocp.sh)
+  [here](./resources/extract-images.sh)
 
 > :exclamation: Sometimes you could need to modify the mentioned scripts or include a new ones. In such cases you can do so by adding them into the [boot-beauty ignition template](./resources/boot-beauty.ign). Finally, include the modified ignition file into the siteConfig manifest in the expected format.
 

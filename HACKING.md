@@ -3,7 +3,7 @@
 - [Developing in telco-ran-tools](#developing-in-telco-ran-tools)
   - [Makefile targets](#makefile-targets)
   - [Linter tests](#linter-tests)
-  - [Updates to extract-ai.sh and extract-ocp.sh](#updates-to-extract-aish-and-extract-ocpsh)
+  - [Updates to extract-images.sh](#updates-to-extract-imagessh)
   - [Building the image](#building-the-image)
   - [Regression testing](#regression-testing)
 
@@ -21,14 +21,19 @@ cannot be merged. It is recommended that you run `make ci-job` regularly as part
 
 Additionally, markdownlint-cli2 can be run manually using `make markdownlint`.
 
-## Updates to extract-ai.sh and extract-ocp.sh
+## Updates to extract-images.sh
 
-When updating the extract-ai.sh and extract-ocp.sh scripts, you will also need to update the ignition sample files and
-the corresponding documentation. This can be done by running:
+When updating the `extract-images.sh` script, you will also need to update the ignition sample files and the corresponding
+documentation. This can be done by running:
 
 ```bash
 make update-resources
 ```
+
+Note that the `extract-images.sh` script is written by the ignition configs as `extract-ai.sh` and `extract-ocp.sh` in
+the different installation stages. The script name determines which set of downloaded images are loaded into container
+storage as part of the running stage, where `extract-ai.sh` loads the images from `ai-images.txt` for the initial
+assisted installer stage, while `extract-ocp.sh` loads the images from `ocp-images.txt` for the runtime platform.
 
 ## Building the image
 
