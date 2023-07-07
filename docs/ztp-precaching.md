@@ -123,6 +123,39 @@ If you have customized the partition label during the [partitioning stage](./par
 - Update the `precache-images.service` and `precache-ocp-images.service` service-unit configuration in the **clusters.ignitionConfigOverride** and **nodes.ignitionConfigOverride**
   to specify your custom partion label as an argument to the `extract-ai.sh` and `extract-ocp.sh` utilities, using the `--label` option.
 
+To update your siteConfig, you can use the `factory-precaching-cli siteconfig` command, which will merge the required
+prestaging hooks into a given siteConfig yaml file.
+
+```console
+$ podman run --rm quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli siteconfig --help
+Update site config
+
+Usage:
+  factory-precaching-cli siteconfig [flags]
+
+Flags:
+  -c, --cfg string     Site-config file
+  -h, --help           help for siteconfig
+  -i, --indent int     Indentation (default 2)
+  -l, --label string   Partition label (default "data")
+      --testmode       Use dummy ignition data for testing
+  -v, --version        version for siteconfig
+```
+
+Using the `siteconfig` command will also help to ensure any updates to prestaging hooks (bug fixes, etc) are reflected
+in the siteconfig. The command writes the updated siteConfig to stdout, which can be redirected to a new file for
+comparison with the original prior to adoption.
+
+```bash
+# Update site-config, using default partition label
+podman run --rm -i quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli siteconfig \
+    <site-config.yaml >new-site-config.yaml
+
+# Update site-config, specifying a custom partition label
+podman run --rm -i quay.io/openshift-kni/telco-ran-tools:latest -- factory-precaching-cli siteconfig \
+    --label mycustompartition <site-config.yaml >new-site-config.yaml
+```
+
 ```yaml
 apiVersion: ran.openshift.io/v1
 kind: SiteConfig
