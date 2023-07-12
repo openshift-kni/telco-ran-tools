@@ -5,6 +5,20 @@ REPOOWNER ?= openshift-kni
 IMAGENAME ?= telco-ran-tools
 IMAGETAG ?= latest
 
+# Include the bindata makefile
+include ./vendor/github.com/openshift/build-machinery-go/make/targets/openshift/bindata.mk
+
+# This will call a macro called "add-bindata" which will generate bindata specific targets based on the parameters:
+# $0 - macro name
+# $1 - target suffix
+# $2 - input dirs
+# $3 - prefix
+# $4 - pkg
+# $5 - output
+# It will generate targets {update,verify}-bindata-$(1) logically grouping them in unsuffixed versions of these targets
+# and also hooked into {update,verify}-generated for broader integration.
+$(call add-bindata,cmd,./docs/resources/...,docs/resources,generated,cmd/generated/zz_generated.bindata.go)
+
 all: dist
 
 .PHONY: fmt
@@ -28,11 +42,11 @@ bashate: ## Run bashate
 	hack/bashate.sh
 
 .PHONY: update-resources
-update-resources: shellcheck bashate
+update-resources: update-bindata shellcheck bashate
 	@echo "Updating docs/resources/boot-beauty.ign"
-	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ocp.sh)\"#" docs/resources/boot-beauty.ign
+	@sed -i "/\"path\":.*extract-ocp/,/\"path\":/ s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-images.sh)\"#" docs/resources/boot-beauty.ign
 	@echo "Updating docs/resources/discovery-beauty.ign"
-	@sed -i "s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-ai.sh)\"#" docs/resources/discovery-beauty.ign
+	@sed -i "/\"path\":.*extract-ai/,/\"path\":/ s#base64,.*#base64,$(shell base64 -w 0 docs/resources/extract-images.sh)\"#" docs/resources/discovery-beauty.ign
 	@hack/update-docs.sh
 
 .PHONY: check-git-tree
@@ -51,7 +65,7 @@ build: dist
 ci-job-e2e: test-e2e check-git-tree
 
 .PHONY: ci-job-unit
-ci-job-unit: fmt vet test-unit golangci-lint shellcheck bashate update-resources check-git-tree
+ci-job-unit: fmt vet update-bindata test-unit golangci-lint shellcheck bashate update-resources check-git-tree
 
 outdir:
 	mkdir -p _output || :
@@ -68,7 +82,7 @@ deps-clean:
 dist: binaries
 
 .PHONY: binaries
-binaries: outdir deps-update fmt vet
+binaries: outdir update-bindata deps-update fmt vet
 	# go flags are set in here
 	./hack/build-binaries.sh
 

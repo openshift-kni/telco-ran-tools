@@ -16,7 +16,7 @@
       {
         "overwrite": true,
         "path": "/usr/local/bin/extract-ocp.sh",
-        "mode": 755,
+        "mode": 493,
         "user": {
           "name": "root"
         },

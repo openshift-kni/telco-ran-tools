@@ -1,0 +1,29 @@
+{
+  "ignition": {
+    "version": "3.1.0"
+  },
+  "systemd": {
+    "units": [
+      {
+        "name": "precache-images.service",
+        "enabled": true,
+        "contents": "[Unit]\nDescription=Truncated for test usage\nExecStart=bash /usr/local/bin/extract-ai.sh --label data\n"
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "overwrite": true,
+        "path": "/usr/local/bin/extract-ai.sh",
+        "mode": 493,
+        "user": {
+          "name": "root"
+        },
+        "contents": {
+          "source": "Truncated for test usage"
+        }
+      }
+    ]
+  }
+}
