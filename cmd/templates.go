@@ -54,8 +54,8 @@ mirror:
         - name: multicluster-engine
           channels:
 {{- /* Because there is no versionless "stable" channel, we need to include the latest versioned channel */ -}}
-{{- if ne .MceChannel "2.3" }}
-            - name: 'stable-2.3'
+{{- if ne .MceChannel "2.4" }}
+            - name: 'stable-2.4'
 {{- end }}
             - name: 'stable-{{.MceChannel}}'
               minVersion: {{ .MceVersion }}
@@ -81,7 +81,7 @@ mirror:
             - name: 'stable'
         - name: cluster-logging
           channels:
-            - name: 'stable'
+            - name: 'stable-5.8'
     - catalog: {{ .CatalogCertifiedOperators }}
       packages:
         - name: sriov-fec
