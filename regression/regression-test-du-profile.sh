@@ -63,13 +63,12 @@ mirror:
       packages:
         - name: multicluster-engine
           channels:
-            - name: 'stable-2.3'
+            - name: 'stable-2.4'
             - name: 'stable-${DEFAULT_TEST_MCE_RELEASE_Y}'
               minVersion: ${DEFAULT_TEST_MCE_RELEASE}
               maxVersion: ${DEFAULT_TEST_MCE_RELEASE}
         - name: advanced-cluster-management
           channels:
-            - name: 'release-2.8'
             - name: 'release-${DEFAULT_TEST_ACM_RELEASE_Y}'
               minVersion: ${DEFAULT_TEST_ACM_RELEASE}
               maxVersion: ${DEFAULT_TEST_ACM_RELEASE}
@@ -84,7 +83,7 @@ mirror:
             - name: 'stable'
         - name: cluster-logging
           channels:
-            - name: 'stable'
+            - name: 'stable-5.8'
     - catalog: registry.redhat.io/redhat/certified-operator-index:v${DEFAULT_TEST_RELEASE_Y}
       packages:
         - name: sriov-fec
