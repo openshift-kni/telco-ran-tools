@@ -69,6 +69,7 @@ mirror:
               maxVersion: ${DEFAULT_TEST_MCE_RELEASE}
         - name: advanced-cluster-management
           channels:
+            - name: 'release-2.9'
             - name: 'release-${DEFAULT_TEST_ACM_RELEASE_Y}'
               minVersion: ${DEFAULT_TEST_ACM_RELEASE}
               maxVersion: ${DEFAULT_TEST_ACM_RELEASE}
