@@ -64,8 +64,8 @@ mirror:
         - name: advanced-cluster-management
           channels:
   {{- /* Because there is no versionless "release" channel, we need to include the latest versioned channel */ -}}
-  {{- if ne .AcmChannel "2.8" }}
-            - name: 'release-2.8'
+  {{- if ne .AcmChannel "2.9" }}
+            - name: 'release-2.9'
   {{- end }}
             - name: 'release-{{ .AcmChannel }}'
               minVersion: {{ .AcmVersion }}

@@ -57,13 +57,13 @@ data:
           packages:
             - name: multicluster-engine
               channels:
-                - name: 'stable-2.3'
+                - name: 'stable-2.4'
                 - name: 'stable-2.2'
                   minVersion: 2.2.3
                   maxVersion: 2.2.3
             - name: advanced-cluster-management
               channels:
-                - name: 'release-2.8'
+                - name: 'release-2.9'
                 - name: 'release-2.7'
                   minVersion: 2.7.3
                   maxVersion: 2.7.3
