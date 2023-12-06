@@ -36,8 +36,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DefaultParallelization set to 80% of available cores.
-var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.8)
+// DefaultParallelization set to 50% of available cores.
+var DefaultParallelization = int(float32(runtime.NumCPU()) * 0.5)
 
 // MaxRequeues is the number of retries allowed for download reattempts.
 const MaxRequeues = 3
